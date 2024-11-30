@@ -60,5 +60,5 @@ path+=('/home/ubuntu/.local/bin')
 
 # Load environment.d variables
 for file in ~/.config/environment.d/* ; do
-    [ -f "$file" ] && export $(cat "$file" | xargs)
+    [ -f "$file" ] && cat "$file" | while read line; do line="${line%\"}" && line=$( echo $line | sed 's/=\"/=/') && export $line; done
 done
