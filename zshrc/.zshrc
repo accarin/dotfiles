@@ -55,6 +55,8 @@ zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
+source /usr/share/nvm/init-nvm.sh
+
 # Add ~/.local/bin to path
 # path+=('/home/ubuntu/.local/bin')
 
