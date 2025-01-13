@@ -64,4 +64,4 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 #done
 
 # integrate with oh my posh
-eval "$(oh-my-posh init zsh)"
+eval "$(oh-my-posh init zsh --config ${HOME}/.config/oh-my-posh/themes/M365Princess.omp.json)"
