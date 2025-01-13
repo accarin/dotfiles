@@ -62,3 +62,6 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 #for file in ~/.config/environment.d/* ; do
 #    [ -f "$file" ] && cat "$file" | while read line; do line="${line%\"}" && line=$( echo $line | sed 's/=\"/=/') && export $line; done
 #done
+
+# integrate with oh my posh
+eval "$(oh-my-posh init zsh)"
