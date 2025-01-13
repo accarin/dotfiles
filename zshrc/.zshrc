@@ -42,7 +42,7 @@ setopt hist_ignore_dups
 alias ls='ls --color'
 
 # Shell Integrations
-# eval "$(fzf --zsh)" #skipped eva fzf as server version is too old
+eval "$(fzf --zsh)" #skip on ubuntu 24.04 as fzf version is too old
 
 # Setup completion system
 autoload -Uz compinit
@@ -56,9 +56,9 @@ zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 # Add ~/.local/bin to path
-path+=('/home/ubuntu/.local/bin')
+# path+=('/home/ubuntu/.local/bin')
 
 # Load environment.d variables
-for file in ~/.config/environment.d/* ; do
-    [ -f "$file" ] && cat "$file" | while read line; do line="${line%\"}" && line=$( echo $line | sed 's/=\"/=/') && export $line; done
-done
+#for file in ~/.config/environment.d/* ; do
+#    [ -f "$file" ] && cat "$file" | while read line; do line="${line%\"}" && line=$( echo $line | sed 's/=\"/=/') && export $line; done
+#done
