@@ -40,6 +40,8 @@ setopt hist_ignore_dups
 
 # Aliases
 alias ls='ls --color'
+alias proxy_on='export HTTP_PROXY=http://localhost:3128; export HTTPS_PROXY=http://localhost:3128; export FTP_PROXY=http://localhost:3128; export ALL_PROXY=http://localhost:3128; export NO_PROXY=localhost,127.0.0.1,::1,192.168.*.*,10.*.*.*,*.aam.services,*.oebb.at,*.railcargo.com'
+alias proxy_off='unset HTTP_PROXY; unset HTTPS_PROXY; unset FTP_PROXY; unset ALL_PROXY; unset NO_PROXY'
 
 # Shell Integrations
 eval "$(fzf --zsh)" #skip on ubuntu 24.04 as fzf version is too old
