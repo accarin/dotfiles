@@ -1,0 +1,43 @@
+# .chezmoiignore — interpreted as a template
+# Logic is INVERTED: list what to IGNORE (not what to include)
+
+# Never deploy the README to the home dir
+README.md
+
+# --- Wayland / window manager configs ---
+# Only deploy on non-server machines (workstation, gaming, notebook)
+{{- if eq .machine_type "server" }}
+.config/niri
+.config/waybar
+.config/wofi
+.config/mako
+.config/hypr
+{{- end }}
+
+# --- Gaming-only configs ---
+# Ignore on everything except gaming
+{{- if ne .machine_type "gaming" }}
+.config/gamemode
+.config/mangohud
+.local/share/lutris
+{{- end }}
+
+# --- Server-only configs ---
+# Ignore on everything except server
+{{- if ne .machine_type "server" }}
+.config/server-motd
+{{- end }}
+
+# --- Shell: deploy the right shell config ---
+# Server uses zsh, desktops use fish
+{{- if ne .machine_type "server" }}
+dot_zshrc
+{{- end }}
+{{- if eq .machine_type "server" }}
+.config/fish
+{{- end }}
+# Ignore Starship on Server
+{{- if eq .machine_type "server" }}
+.config/starship
+{{- end }}
+

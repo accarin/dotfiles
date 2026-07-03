@@ -1,0 +1,61 @@
+# =============================================================================
+# ~/.config/fish/config.fish
+# Managed by chezmoi — machine type: {{ .machine_type }}
+# =============================================================================
+
+# --- PATH ---
+fish_add_path ~/.local/bin
+
+# --- Environment ---
+set -gx EDITOR nvim
+set -gx VISUAL nvim
+set -gx PAGER  less
+
+# --- XDG Base Dirs ---
+set -gx XDG_CONFIG_HOME ~/.config
+set -gx XDG_DATA_HOME   ~/.local/share
+set -gx XDG_CACHE_HOME  ~/.cache
+
+# --- Wayland / Desktop (all non-server types) ---
+{{- if ne .machine_type "server" }}
+set -gx XDG_CURRENT_DESKTOP niri
+set -gx XDG_SESSION_TYPE    wayland
+set -gx MOZ_ENABLE_WAYLAND  1
+set -gx QT_QPA_PLATFORM     wayland
+{{- end }}
+
+# --- Notebook: HiDPI / compact display tweaks ---
+{{- if eq .machine_type "notebook" }}
+set -gx GDK_SCALE 1
+set -gx GDK_DPI_SCALE 1.25
+set -gx QT_SCALE_FACTOR 1.25
+{{- end }}
+
+# --- Gaming PC additions ---
+{{- if eq .machine_type "gaming" }}
+# MangoHud for all Vulkan games
+set -gx MANGOHUD 1
+# GameMode
+set -gx SDL_AUDIODRIVER pipewire
+{{- end }}
+
+# --- Aliases ---
+alias v    nvim
+alias vi   nvim
+alias vim  nvim
+alias ll   'ls -lah --color=auto'
+alias la   'ls -A --color=auto'
+alias ..   'cd ..'
+alias ...  'cd ../..'
+alias gs   'git status'
+alias gp   'git push'
+alias gl   'git pull'
+
+# --- chezmoi shortcut ---
+alias cm   chezmoi
+alias cmu  'chezmoi update -v'
+alias cma  'chezmoi apply -v'
+alias cmd  'chezmoi diff'
+
+# --- Starship prompt ---
+starship init fish | source

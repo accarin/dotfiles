@@ -1,0 +1,13 @@
+{{/* .chezmoi.toml.tmpl — generates ~/.config/chezmoi/chezmoi.toml on init */}}
+{{- $machine_type := promptStringOnce . "machine_type" "Machine type (workstation/gaming/notebook/server)" -}}
+{{- $git_name     := promptStringOnce . "git_name"     "Git full name" -}}
+{{- $git_email    := promptStringOnce . "git_email"    "Git email" -}}
+
+[data]
+  machine_type = {{ $machine_type | quote }}
+  git_name     = {{ $git_name | quote }}
+  git_email    = {{ $git_email | quote }}
+
+[git]
+  autoCommit = true
+  autoPush   = true

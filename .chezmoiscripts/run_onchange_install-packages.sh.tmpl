@@ -1,0 +1,124 @@
+#!/bin/bash
+# run_onchange_install-packages.sh.tmpl
+# Re-runs only when this file's content changes (i.e., when you edit the package list)
+# Managed by chezmoi
+
+set -euo pipefail
+
+{{- if eq .machine_type "server" }}
+
+# ============================================================
+# SERVER — Debian packages
+# ============================================================
+DEBIAN_PKGS=(
+    zsh
+    git
+    curl
+    wget
+    htop
+    tmux
+    neovim
+    ripgrep
+    fd-find
+    fzf
+    unzip
+    tree
+    jq
+)
+
+echo "==> Installing Debian packages..."
+sudo apt-get update -qq
+sudo apt-get install -y "${DEBIAN_PKGS[@]}"
+
+{{- else }}
+
+# ============================================================
+# DESKTOP — CachyOS / Arch packages (pacman + paru for AUR)
+# ============================================================
+
+PACMAN_PKGS=(
+    # Shell & terminal
+    fish
+    starship
+    foot
+    tmux
+
+    # Editors & tools
+    neovim
+    git
+    curl
+    wget
+    ripgrep
+    fd
+    fzf
+    bat
+    eza
+    zoxide
+    jq
+    unzip
+    tree
+
+    # Wayland / desktop
+    # niri
+    # waybar
+    # wofi
+    # mako
+    # wl-clipboard
+    # xdg-utils
+    # pipewire
+    # wireplumber
+
+    # Fonts
+    ttf-jetbrains-mono-nerd
+)
+
+AUR_PKGS=(
+    # AUR packages common to all desktops
+    # Add yours here
+)
+
+{{-   if eq .machine_type "gaming" }}
+PACMAN_PKGS+=(
+    steam
+    gamemode
+    mangohud
+    lib32-mangohud
+    wine
+    winetricks
+    lutris
+    vulkan-tools
+)
+
+AUR_PKGS+=(
+    proton-ge-custom
+)
+{{-   end }}
+
+{{-   if eq .machine_type "notebook" }}
+PACMAN_PKGS+=(
+    brightnessctl
+    tlp
+    powertop
+    acpi
+)
+{{-   end }}
+
+echo "==> Installing pacman packages..."
+sudo pacman -S --needed --noconfirm "${PACMAN_PKGS[@]}"
+
+if command -v paru &>/dev/null && [ ${#AUR_PKGS[@]} -gt 0 ]; then
+    echo "==> Installing AUR packages via paru..."
+    paru -S --needed --noconfirm "${AUR_PKGS[@]}"
+fi
+
+# Set fish as default shell (desktops only)
+if ! grep -q "$(which fish)" /etc/shells; then
+    echo "$(which fish)" | sudo tee -a /etc/shells
+fi
+if [ "$SHELL" != "$(which fish)" ]; then
+    chsh -s "$(which fish)"
+fi
+
+{{- end }}
+
+echo "==> Package installation complete."

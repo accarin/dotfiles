@@ -1,0 +1,23 @@
+[user]
+    name  = {{ .git_name | quote }}
+    email = {{ .git_email | quote }}
+
+[core]
+    editor = code
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = true
+
+[alias]
+    st  = status
+    co  = checkout
+    lg  = log --oneline --graph --decorate
+
+{{- if eq .machine_type "server" }}
+# On servers, don't use a credential helper - use SSH keys only
+[credential]
+    helper =
+{{- end }}

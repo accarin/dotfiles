@@ -1,0 +1,31 @@
+# ~/.config/starship/starship.toml
+# Managed by chezmoi
+
+"$schema" = "https://starship.rs/config-schema.json"
+
+{{ if eq .machine_type "notebook" -}}
+# Compact format for notebook — save horizontal space
+format = """
+$directory$git_branch$git_status$character"""
+
+[directory]
+truncation_length = 2
+
+{{ else -}}
+# Full format for wide screens
+format = """
+$username$hostname$directory$git_branch$git_status$cmd_duration
+$character"""
+
+{{ end -}}
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol   = "[❯](bold red)"
+
+[git_branch]
+symbol = " "
+
+[git_status]
+ahead  = "⇡${count}"
+behind = "⇣${count}"
