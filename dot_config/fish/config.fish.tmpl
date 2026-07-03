@@ -58,5 +58,12 @@ alias cmt  'chezmoi apply --dry-run --verbose'
 alias cma  'chezmoi apply -v'
 alias cmd  'chezmoi diff'
 
+# --- Greeting ---
+function fish_greeting
+    set_color cyan
+    echo "fish "(fish --version 2>&1 | string replace 'fish, version ' '')" · "(string trim (grep PRETTY_NAME /etc/os-release | string replace 'PRETTY_NAME=' '' | string replace -a '"' ''))" · "(uname -r)
+    set_color normal
+end
+
 # --- Starship prompt ---
 starship init fish | source
