@@ -16,8 +16,8 @@
     co  = checkout
     lg  = log --oneline --graph --decorate
 
-{{- if eq .machine_type "server" }}
-# On servers, don't use a credential helper - use SSH keys only
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
+# On servers/WSL, don't use a credential helper - use SSH keys only
 [credential]
     helper =
 {{- end }}

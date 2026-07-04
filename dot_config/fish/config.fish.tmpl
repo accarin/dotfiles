@@ -16,8 +16,8 @@ set -gx XDG_CONFIG_HOME ~/.config
 set -gx XDG_DATA_HOME   ~/.local/share
 set -gx XDG_CACHE_HOME  ~/.cache
 
-# --- Wayland / Desktop (all non-server types) ---
-{{- if ne .machine_type "server" }}
+# --- Wayland / Desktop (all non-server/wsl types) ---
+{{- if and (ne .machine_type "server") (ne .machine_type "wsl") }}
 set -gx XDG_CURRENT_DESKTOP niri
 set -gx XDG_SESSION_TYPE    wayland
 set -gx MOZ_ENABLE_WAYLAND  1
