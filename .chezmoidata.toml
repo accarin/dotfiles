@@ -33,7 +33,9 @@ enabled = true
 [machines.silverhand.u2f]
 enabled = true
 
-# notebook
+# notebooks
 [machines.hitchhiker.u2f]
 enabled = true
 
+[machines.pc46379]
+enabled = true
