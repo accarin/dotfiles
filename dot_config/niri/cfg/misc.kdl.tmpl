@@ -1,23 +1,11 @@
 // ~/.config/niri/cfg/misc.kdl
-// Managed by chezmoi — machine type: {{ .machine_type }}    
-
-{{- $u2f_enabled := .u2f.enabled }}
-{{- $hostname := .chezmoi.hostname }}
-{{- if hasKey .machines $hostname }}
-{{-   $machine := index .machines $hostname }}
-{{-   if hasKey $machine "u2f" }}
-{{-     $machineU2f := index $machine "u2f" }}
-{{-     if hasKey $machineU2f "enabled" }}
-{{-       $u2f_enabled = index $machineU2f "enabled" }}
-{{-     end }}
-{{-   end }}
-{{- end }}
+// Managed by chezmoi — machine type: {{ .machine_type }}
 
 prefer-no-csd
 screenshot-path null
 
 environment {
-    NOCTALIA_PAM_SERVICE {{ if $u2f_enabled }}"noctalia"{{ else }}"system-auth"{{ end }}
+    NOCTALIA_PAM_SERVICE "system-auth"
     ELECTRON_OZONE_PLATFORM_HINT "auto"
     QT_QPA_PLATFORM "wayland"
     QT_QPA_PLATFORMTHEME "gtk3"

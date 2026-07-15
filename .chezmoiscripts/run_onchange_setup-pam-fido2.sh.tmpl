@@ -31,8 +31,11 @@ set -euo pipefail
 
 {{- if and (ne .machine_type "server") $u2f_enabled }}
 
+echo "==> Installing necessary packages for FIDO2 PAM support..."
+sudo pacman -S --needed --noconfirm pam-u2f libfido2
+
 echo "==> Deploying /etc/u2f_mappings..."
-sudo install -m 600 -o root -g root /dev/stdin /etc/u2f_mappings << 'EOF'
+sudo install -m 644 -o root -g root /dev/stdin /etc/u2f_mappings << 'EOF'
 {{ range $user, $data := $u2f_keys -}}
 {{ $user }}:{{ join ":" $data.keys }}
 {{ end -}}
@@ -66,23 +69,12 @@ session    required                    pam_unix.so
 session    optional                    pam_permit.so
 EOF
 
-echo "==> Deploying PAM noctalia..."
-sudo install -m 644 -o root -g root /dev/stdin /etc/pam.d/noctalia << 'EOF'
-#%PAM-1.0
-
-auth       required                    pam_faillock.so      preauth
--auth      [success=3 default=ignore]  pam_systemd_home.so
-auth       [success=2 default=ignore]  pam_u2f.so           authfile=/etc/u2f_mappings cue origin={{ $origin }} appid={{ $appid }}
-auth       [success=1 default=bad]     pam_unix.so          try_first_pass nullok
-auth       [default=die]               pam_faillock.so      authfail
-auth       optional                    pam_permit.so
-auth       required                    pam_env.so
-auth       required                    pam_faillock.so      authsucc
-
-account    include                     system-auth
-password   include                     system-auth
-session    include                     system-auth
-EOF
+echo "==> Deploying FIDO2 udev rules..."
+sudo curl -fsSL \
+  https://raw.githubusercontent.com/Yubico/libfido2/main/udev/70-u2f.rules \
+  -o /etc/udev/rules.d/70-u2f.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
 
 echo "==> PAM FIDO2 setup complete."
 
