@@ -1,0 +1,39 @@
+# Global default — u2f disabled unless explicitly enabled per machine
+[u2f]
+enabled = false
+origin = "pam://marc.tautschnig.org"
+appid  = "pam://marc.tautschnig.org"
+
+# Global key pool for accarin
+[u2f_keys.accarin]
+keys = [
+    # T2 Maxi M1
+    "/8fkYCZ7eGZR/Zx1x9dHu7fmQ8jU/R7A+n8jJ37Gees7m/wL+MbMfyv3oma9NUPpkG/+Dw3gCknHp1H57GW9UZBg9nVO9ekCoQq9tRLPvIJUUHPpXr/glkFtwooH1ye2,8urXdJioft3atHk21gA73Em3QCczObFgXcoTWMUrTkzQPoXUVG/kynfZebO8XKTJM+mydAM7PiwQN/HnEIwKqA==,es256,+presence+pin",
+    # T2 Maxi M2
+    "coIN8GsTDBR9pV4lUsxYY4NO0Tn0Ex/juTULr57jB0ozJ14i0HGtpyQlT1si0XjjyfUAeKEFwxqj9ZmzE3swFokSVWcdEJMsTgeTAGM8UEf+apdeXZNJJW9kl78TaXNW,mP87xirOAy6UzjoZLjBzNhXjYH3wQPIl/2tNkWsduZVC3CUaD5kyQrdirYLr+WpDn1Vy2aXT2YHVSVFyqsYPfg==,es256,+presence+pin",
+    # T2 Mini U1
+    "DzT+bHhlz8zwwNmHgqKrzjrgPFTcMVFUUoKFiLuQI1xgCK/A/I09TV1D5RtOEtSoFA7DnnYGxfJbPNjl1CA3KM/CYnmkXDTLvHXbt+UdZxAXrKk3eGuYvXzn4ZqQKuEQ,kMjyQDDrL94Bk9AOee40eKoPQlgcb9Hu7wih2pkvUlOKnofjXkYpnLv54SNjyuaejRLBx5n2IRs9vKkoYVi+Cw==,es256,+presence+pin",
+    # T2 Mini U2
+    "o2wn9dAVwD4Pb2uYVRii7KXlIQdGYJ54HoKhte31cb4jod2EYyiNmdRXYjFxwu9NmDCEwaDDtt9sigLm6EY9K1pvxn563lBC4Ex1pKkovR8ws1r/OFvLseZY+1B0V1FR,3s8EwR8XfZ7n/U8P4ssZxf+MLvNZmCV9yZgTX0WV3l8Ae+K311WmwfbHeiOssgBId1VI4SOxXARMYWmffq4hvQ==,es256,+presence+pin",
+    # T2 Mini C1
+    "CNWA2pmOMzCMhS0TkJmtUAg5e06k4di7Dc38OV2rWGj3QTYrP24+F2wGBsmaweyOwA5SyjjB2FOTdLw9JV8IhTMsyZzjq5uKX+/8TNtN6jn4VG7pveInFh4F6g4MJSOQ,zgYbtEFORf6ttKf1c5SQW/w9xWOU6jllrjsLfEs3RWhQvrFNaq2oZNDWEX4DfeyJm1AtKNIiPg6tCpPkKj4KDQ==,es256,+presence+pin",
+    # Legacy Mobile
+    "YMIjWf1sQR1Jl12hwYSfvlwJaY7+fWhJDv87paY2lai1T6pI0tzfh1NLqSz7MVqat9VcA/31M7Qw5f1JNf4jIQ==,Fa1jUCPcXoWk4Dyf23c0nkJs/27YB3VEgT26PAayb1p/E4lljVQT+qN+RqdXHvxaf8Nk6sEMMnQOm8HD2urQYw==,es256,+presence+pin",
+    # Legacy Home
+    "uxnJwPTdnsqPjrMlZSmpgZaDIUW4npfbZi584rLYfdRkMj3sAwFX+TUYtSHKZItVTl7a5d3e11f7keJWw/IiGg==,2aUTLHBiUK7BVrn0DtXyRxWtP/bTbMI1qiNsuvtU8Se8rU9iorZqHUI+x0MA6MuHbEsDhYY/lPgWYTe7L3QcOw==,es256,+presence+pin",
+]
+
+# Per-machine overrides, keyed by hostname
+
+# workstation
+[machines.deep-thought.u2f]
+enabled = true
+
+# gaming
+[machines.silverhand.u2f]
+enabled = true
+
+# notebook
+[machines.hitchhiker.u2f]
+enabled = true
+
