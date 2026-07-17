@@ -5,22 +5,26 @@
 
 set -euo pipefail
 
-{{- if eq .machine_type "server" }}
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
 
 # ============================================================
-# SERVER — Debian packages
+# SERVER / WSL — Debian packages
 # ============================================================
 DEBIAN_PKGS=(
-    zsh
+    bash-completion
     git
     curl
     wget
     htop
     tmux
-    neovim
+    micro
+    nano
     ripgrep
     fd-find
     fzf
+    zoxide
+    bat
+    eza
     unzip
     tree
     jq
@@ -29,6 +33,12 @@ DEBIAN_PKGS=(
 echo "==> Installing Debian packages..."
 sudo apt-get update -qq
 sudo apt-get install -y "${DEBIAN_PKGS[@]}"
+
+# Set bash as the default login shell (servers/wsl only — coadmins have
+# their own accounts, this only ever touches the user chezmoi runs as)
+if [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v bash)" ]; then
+    chsh -s "$(command -v bash)"
+fi
 
 {{- else }}
 

@@ -29,15 +29,15 @@ README.md
 {{- end }}
 
 # --- Shell: deploy the right shell config ---
-# Server uses zsh, desktops use fish
-{{- if ne .machine_type "server" }}
-dot_zshrc
+# Server + wsl use bash, desktops (workstation/gaming/notebook) use fish
+{{- if not (or (eq .machine_type "server") (eq .machine_type "wsl")) }}
+dot_bashrc
 {{- end }}
-{{- if eq .machine_type "server" }}
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
 .config/fish
 {{- end }}
-# Ignore Starship on Server
-{{- if eq .machine_type "server" }}
+# Ignore Starship on server + wsl
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
 .config/starship
 {{- end }}
 

@@ -43,13 +43,20 @@ set -gx SDL_AUDIODRIVER pipewire
 alias v    nvim
 alias vi   nvim
 alias vim  nvim
-alias ll   'ls -lah --color=auto'
-alias la   'ls -A --color=auto'
 alias ..   'cd ..'
 alias ...  'cd ../..'
 alias gs   'git status'
 alias gp   'git push'
 alias gl   'git pull'
+
+# --- Modern tool replacements (personal desktop shell — fine to override
+#     core tools here, unlike the shared-friendly bash setup on servers) ---
+alias ls   eza
+alias ll   'eza -lah'
+alias la   'eza -A'
+alias cat  bat
+alias grep rg
+alias find fd
 
 # --- chezmoi shortcut ---
 alias cm   chezmoi

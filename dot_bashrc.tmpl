@@ -1,0 +1,83 @@
+# =============================================================================
+# ~/.bashrc — server / wsl config
+# Managed by chezmoi — machine type: {{ .machine_type }}
+# =============================================================================
+
+# If not running interactively, don't do anything (sshd runs .bashrc for
+# non-interactive sessions too — scp/rsync/sftp/ansible must stay silent).
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# --- PATH ---
+export PATH="$HOME/.local/bin:$PATH"
+
+# --- Environment ---
+if command -v micro >/dev/null 2>&1; then
+    export EDITOR=micro
+    export VISUAL=micro
+else
+    export EDITOR=nano
+    export VISUAL=nano
+fi
+export PAGER=less
+export LESS='-R -F -X'
+
+# --- History ---
+shopt -s histappend
+shopt -s cmdhist
+HISTCONTROL=ignoreboth:erasedups
+HISTSIZE=10000
+HISTFILESIZE=20000
+HISTTIMEFORMAT='%F %T '
+PROMPT_COMMAND="history -a${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+
+# --- Shell options ---
+shopt -s checkwinsize
+shopt -s globstar
+
+# --- bash-completion ---
+if ! shopt -oq posix; then
+    if [ -f /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+    elif [ -f /etc/bash_completion ]; then
+        . /etc/bash_completion
+    fi
+fi
+
+# --- Prompt (plain bash, git-aware, no external deps) ---
+__ps1_git() {
+    local b
+    b=$(git symbolic-ref --short HEAD 2>/dev/null) && printf ' (%s)' "$b"
+}
+PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\[\e[0;33m\]$(__ps1_git)\[\e[0m\]\$ '
+
+# --- Keybindings: prefix-based history search on Up/Down ---
+bind '"\e[A": history-search-backward'
+bind '"\e[B": history-search-forward'
+
+# --- Tool hooks (guarded — box may not have all packages) ---
+command -v fzf    >/dev/null 2>&1 && eval "$(fzf --bash)"
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+
+# --- Aliases ---
+alias ll='ls -lah --color=auto'
+alias la='ls -A --color=auto'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias grep='grep --color=auto'
+alias gs='git status'
+alias gp='git push'
+alias gl='git pull'
+
+# chezmoi shortcuts
+alias cm=chezmoi
+alias cmu='chezmoi update -v'
+alias cmt='chezmoi apply --dry-run --verbose'
+alias cma='chezmoi apply -v'
+alias cmd='chezmoi diff'
+
+# Debian package binary renames — restore upstream names
+command -v batcat >/dev/null 2>&1 && alias bat=batcat
+command -v fdfind >/dev/null 2>&1 && alias fd=fdfind
