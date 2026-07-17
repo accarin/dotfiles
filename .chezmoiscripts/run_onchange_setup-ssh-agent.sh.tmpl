@@ -30,21 +30,6 @@ echo "==> Installing OpenSSH..."
 # contexts (e.g. VS Code's Source Control panel), via XWayland.
 sudo pacman -S --needed --noconfirm openssh libfido2 x11-ssh-askpass
 
-echo "==> Deploying systemd user unit ssh-agent.service..."
-install -Dm644 /dev/stdin "$HOME/.config/systemd/user/ssh-agent.service" << 'EOF'
-[Unit]
-Description=SSH key agent
-
-[Service]
-Type=simple
-Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
-ExecStart=/usr/bin/ssh-agent -D -a %t/ssh-agent.socket
-Restart=on-failure
-
-[Install]
-WantedBy=default.target
-EOF
-
 echo "==> Deploying SSH_AUTH_SOCK / SSH_ASKPASS environment.d entry..."
 # SSH_ASKPASS_REQUIRE=force makes ssh/ssh-agent always use the askpass helper
 # for prompts (touch/PIN for FIDO2 sk keys, or passphrases) instead of a tty,
@@ -59,12 +44,32 @@ SSH_ASKPASS=/usr/lib/ssh/ssh-askpass
 SSH_ASKPASS_REQUIRE=force
 EOF
 
-echo "==> Enabling ssh-agent systemd user service..."
+echo "==> Migrating away from legacy hand-rolled ssh-agent.service override..."
+# Older versions of this script installed a hand-rolled always-on unit
+# (WantedBy=default.target, no socket activation). CachyOS/Arch's openssh
+# package already ships ssh-agent.socket + ssh-agent.service (preset:
+# enabled), so remove any leftover override and let the vendor units take
+# effect instead.
+if [ -f "$HOME/.config/systemd/user/ssh-agent.service" ]; then
+  systemctl --user disable --now ssh-agent.service 2>/dev/null || true
+  rm -f "$HOME/.config/systemd/user/ssh-agent.service"
+fi
+
+echo "==> Enabling vendor ssh-agent.socket (socket-activated)..."
 # ~/.ssh/config itself (Host routing, IdentityFile selection) is managed
 # separately by private_dot_ssh/modify_private_config.tmpl, independent of
 # whether this systemd unit is enabled on this machine.
+#
+# The vendor ssh-agent.service (Requires=ssh-agent.socket, ExecStart has no
+# explicit -a path) relies entirely on socket activation to bind
+# %t/ssh-agent.socket, so we enable the *socket* unit rather than starting
+# the service directly. sockets.target is pulled in by basic.target very
+# early in the user session -- independent of when niri/the graphical
+# session starts -- so the socket path exists immediately and ssh-agent is
+# only spawned lazily on first connection. This avoids any startup-ordering
+# race against the window manager that the old always-on unit was prone to.
 systemctl --user daemon-reload
-systemctl --user enable --now ssh-agent.service
+systemctl --user enable --now ssh-agent.socket
 
 echo "==> ssh-agent setup complete."
 
