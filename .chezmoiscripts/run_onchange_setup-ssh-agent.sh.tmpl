@@ -1,0 +1,71 @@
+#!/bin/bash
+# run_onchange_setup-ssh-agent.sh.tmpl
+set -euo pipefail
+
+{{- /* --------------------------------------------------------
+     Resolve per-machine overrides
+     -------------------------------------------------------- */ -}}
+
+{{- $ssh_agent_enabled := .ssh_agent.enabled }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+
+{{-   if hasKey $machine "ssh_agent" }}
+{{-     $machineSshAgent := index $machine "ssh_agent" }}
+{{-     if hasKey $machineSshAgent "enabled" }}
+{{-       $ssh_agent_enabled = index $machineSshAgent "enabled" }}
+{{-     end }}
+{{-   end }}
+
+{{- end }}
+
+{{- if and (ne .machine_type "server") $ssh_agent_enabled }}
+
+echo "==> Installing OpenSSH..."
+# libfido2 is an *optional* dependency of openssh (dlopen'd at runtime) — it
+# must be installed explicitly for ed25519-sk / ecdsa-sk (FIDO2) key support.
+# x11-ssh-askpass provides a GUI PIN/passphrase prompt for non-terminal
+# contexts (e.g. VS Code's Source Control panel), via XWayland.
+sudo pacman -S --needed --noconfirm openssh libfido2 x11-ssh-askpass
+
+echo "==> Deploying systemd user unit ssh-agent.service..."
+install -Dm644 /dev/stdin "$HOME/.config/systemd/user/ssh-agent.service" << 'EOF'
+[Unit]
+Description=SSH key agent
+
+[Service]
+Type=simple
+Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
+ExecStart=/usr/bin/ssh-agent -D -a %t/ssh-agent.socket
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+
+echo "==> Deploying SSH_AUTH_SOCK / SSH_ASKPASS environment.d entry..."
+# SSH_ASKPASS_REQUIRE=force makes ssh/ssh-agent always use the askpass helper
+# for prompts (touch/PIN for FIDO2 sk keys, or passphrases) instead of a tty,
+# which is required for GUI-launched git (e.g. VS Code's Source Control panel).
+install -Dm644 /dev/stdin "$HOME/.config/environment.d/ssh-agent.conf" << 'EOF'
+SSH_AUTH_SOCK=%t/ssh-agent.socket
+SSH_ASKPASS=/usr/lib/ssh/ssh-askpass
+SSH_ASKPASS_REQUIRE=force
+EOF
+
+echo "==> Enabling ssh-agent systemd user service..."
+# ~/.ssh/config itself (Host routing, IdentityFile selection) is managed
+# separately by private_dot_ssh/modify_private_config.tmpl, independent of
+# whether this systemd unit is enabled on this machine.
+systemctl --user daemon-reload
+systemctl --user enable --now ssh-agent.service
+
+echo "==> ssh-agent setup complete."
+
+{{- else }}
+
+echo "==> ssh-agent setup skipped (not enabled for {{ $hostname }})."
+
+{{- end }}

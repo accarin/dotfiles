@@ -39,3 +39,52 @@ enabled = true
 
 [machines.pc46379.u2f]
 enabled = true
+
+# =============================================================================
+# ssh-agent (systemd --user) — used for VS Code + devcontainers git access
+# =============================================================================
+
+# Global default — ssh-agent disabled unless explicitly enabled per machine
+[ssh_agent]
+enabled = false
+
+# Structured per-host ~/.ssh/config entries for accarin, rendered in order by
+# private_dot_ssh/modify_private_config.tmpl. Fields:
+#   host            - required, the Host pattern
+#   user            - optional
+#   hostname        - optional, defaults to `host`
+#   identity_file   - optional
+#   identities_only - optional, defaults to true whenever identity_file is set
+#   port            - optional
+#   extra           - optional inline table for any other ssh_config directive
+[[ssh_hosts.accarin.entries]]
+host          = "github.com"
+user          = "git"
+identity_file = "~/.key/ssh.github.u2f-kvm.key"
+
+# Per-machine overrides, keyed by hostname
+# Enable the ssh-agent systemd unit on the machines where you want it running:
+#
+# [machines.hitchhiker.ssh_agent]
+# enabled = true
+#
+# Add/replace ssh_hosts entries on a machine: merged with the global list,
+# keyed by `host` -- an override entry with the same `host` as a global one
+# replaces it; override-only hosts are appended:
+#
+# [[machines.hitchhiker.ssh_hosts.accarin.entries]]
+# host = "..."
+
+[machines.deep-thought.ssh_agent]
+enabled = true
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "oebb.ghe.com"
+user          = "git"
+identity_file = "~/.key/ssh.oebb.ghe.key"
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "91.98.82.105"
+user          = "admin"
+identity_file = "~/.key/ssh.nxs-1.tautschnig.org.u2f-kvm.key"
+port          = 62022

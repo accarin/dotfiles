@@ -1,0 +1,106 @@
+{{/* chezmoi:modify-template */}}
+{{- $hostname := .chezmoi.hostname }}
+{{- $user := .chezmoi.username }}
+{{- $homeDir := .chezmoi.homeDir }}
+
+{{- /* --------------------------------------------------------
+     Resolve per-machine overrides for ssh_hosts: merged with the
+     global list, keyed by `host`. A machine override entry with
+     the same `host` as a global entry replaces it; override-only
+     hosts are appended.
+     -------------------------------------------------------- */ -}}
+
+{{- $entries := list }}
+{{- if hasKey .ssh_hosts $user }}
+{{-   $entries = (index .ssh_hosts $user).entries }}
+{{- end }}
+
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "ssh_hosts" }}
+{{-     $machineSshHosts := index $machine "ssh_hosts" }}
+{{-     if hasKey $machineSshHosts $user }}
+{{-       $overrideEntries := (index $machineSshHosts $user).entries }}
+{{-       $overrideHosts := list }}
+{{-       range $overrideEntries }}
+{{-         $overrideHosts = append $overrideHosts .host }}
+{{-       end }}
+{{-       $keptEntries := list }}
+{{-       range $entries }}
+{{-         if not (has .host $overrideHosts) }}
+{{-           $keptEntries = append $keptEntries . }}
+{{-         end }}
+{{-       end }}
+{{-       $entries = concat $keptEntries $overrideEntries }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+{{- /* --------------------------------------------------------
+     Extract the manual override block from the existing file,
+     if present. If the existing file predates these markers,
+     migrate its entire content into the override block and
+     warn prominently.
+     -------------------------------------------------------- */ -}}
+
+{{- $existing := .chezmoi.stdin }}
+{{- $startMarker := "### MANUAL OVERRIDE BLOCK ###" }}
+{{- $endMarker := "### MANUAL OVERRIDE BLOCK END ###" }}
+{{- $override := "" }}
+{{- if and (contains $startMarker $existing) (contains $endMarker $existing) }}
+{{-   $afterStart := index (splitList $startMarker $existing) 1 }}
+{{-   $override = trim (index (splitList $endMarker $afterStart) 0) }}
+{{- else if ne (trim $existing) "" }}
+{{-   $override = trim $existing }}
+{{-   $ignored := warnf "~/.ssh/config existed without chezmoi's markers -- its entire previous content has been moved into the manual override block. Please review ~/.ssh/config for inconsistencies!" }}
+{{- end }}
+
+{{- /* --------------------------------------------------------
+     Warn prominently about any configured key that doesn't
+     exist yet on this machine.
+     -------------------------------------------------------- */ -}}
+
+{{- range $entries }}
+{{-   if hasKey . "identity_file" }}
+{{-     $expanded := .identity_file }}
+{{-     if hasPrefix "~/" $expanded }}
+{{-       $expanded = joinPath $homeDir (trimPrefix "~/" $expanded) }}
+{{-     end }}
+{{-     if not (stat $expanded) }}
+{{-       $ignored := warnf "SSH key %q (Host %s) not found -- create it or fix the path in ssh_hosts" .identity_file .host }}
+{{-     end }}
+{{-   end }}
+{{- end -}}
+# This file is managed by chezmoi.
+# Generated content below is regenerated on every "chezmoi apply" and any
+# manual edits there WILL be overwritten. Put manual changes in the override
+# block at the bottom instead.
+{{ range $entries }}
+Host {{ .host }}
+{{- if hasKey . "user" }}
+    User {{ .user }}
+{{- end }}
+    HostName {{ if hasKey . "hostname" }}{{ .hostname }}{{ else }}{{ .host }}{{ end }}
+{{- if hasKey . "identity_file" }}
+    IdentityFile {{ .identity_file }}
+{{-   if or (not (hasKey . "identities_only")) (ne .identities_only false) }}
+    IdentitiesOnly yes
+{{-   end }}
+{{- end }}
+{{- if hasKey . "port" }}
+    Port {{ .port }}
+{{- end }}
+{{- if hasKey . "extra" }}
+{{-   range $k, $v := .extra }}
+    {{ $k }} {{ $v }}
+{{-   end }}
+{{- end }}
+{{ end }}
+# Everything between the two markers below is yours: chezmoi preserves it
+# untouched across every "chezmoi apply". Put manual additions there, not
+# above this line.
+### MANUAL OVERRIDE BLOCK ###
+{{ if $override }}
+{{ $override }}
+{{ end -}}
+### MANUAL OVERRIDE BLOCK END ###
