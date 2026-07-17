@@ -62,6 +62,19 @@ host          = "github.com"
 user          = "git"
 identity_file = "~/.key/ssh.github.u2f-kvm.key"
 
+# NOTE: ssh_hosts (and u2f_keys) are keyed by the *OS username* chezmoi runs
+# as on that machine (`.chezmoi.username`), not by "which person you are" --
+# so a Debian server logged into as "admin" needs its own ssh_hosts.admin
+# block below, separate from ssh_hosts.accarin used on your desktops.
+
+# Global key pool for admin (Debian servers)
+# TODO: fill in real identity_file path(s) once the admin key(s) exist on
+# the servers -- placeholder below just mirrors the accarin github.com entry.
+# [[ssh_hosts.admin.entries]]
+# host          = "github.com"
+# user          = "git"
+# identity_file = "~/.key/ssh.github.admin.key"   # TODO: placeholder, replace me
+
 # Per-machine overrides, keyed by hostname
 # Enable the ssh-agent systemd unit on the machines where you want it running:
 #
@@ -88,3 +101,11 @@ host          = "91.98.82.105"
 user          = "admin"
 identity_file = "~/.key/ssh.nxs-1.tautschnig.org.u2f-kvm.key"
 port          = 62022
+
+# TODO: placeholder — replace "your-debian-server" with the real hostname
+# (as reported by `.chezmoi.hostname`, i.e. `hostname -s` on that box) and
+# fill in/remove entries as needed. Uncomment once you have real values.
+# [[machines.nxs-1.ssh_hosts.admin.entries]]
+# host          = "github.com"
+# user          = "git"
+# identity_file = "~/.key/ssh.github.admin.key"
