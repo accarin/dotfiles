@@ -97,9 +97,15 @@ user          = "git"
 identity_file = "~/.key/ssh.oebb.ghe.key"
 
 [[machines.deep-thought.ssh_hosts.accarin.entries]]
-host          = "91.98.82.105"
+host          = "nxs-1.nxs.internal"
 user          = "admin"
-identity_file = "~/.key/ssh.nxs-1.tautschnig.org.u2f-kvm.key"
+identity_file = "~/.key/ssh.nxs-1.nxs.internal.u2f-kvm.key"
+port          = 62022
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "atm-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.atm-1.nxs.internal.u2f-kvm.key"
 port          = 62022
 
 # TODO: placeholder — replace "your-debian-server" with the real hostname
