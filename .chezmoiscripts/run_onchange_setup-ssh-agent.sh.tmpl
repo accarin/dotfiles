@@ -49,8 +49,12 @@ echo "==> Deploying SSH_AUTH_SOCK / SSH_ASKPASS environment.d entry..."
 # SSH_ASKPASS_REQUIRE=force makes ssh/ssh-agent always use the askpass helper
 # for prompts (touch/PIN for FIDO2 sk keys, or passphrases) instead of a tty,
 # which is required for GUI-launched git (e.g. VS Code's Source Control panel).
+# NOTE: environment.d only expands references to *other already-set*
+# environment variables (${VAR}) -- it does NOT expand systemd unit
+# specifiers like %t, so XDG_RUNTIME_DIR (set by PAM) must be used here
+# instead of %t.
 install -Dm644 /dev/stdin "$HOME/.config/environment.d/ssh-agent.conf" << 'EOF'
-SSH_AUTH_SOCK=%t/ssh-agent.socket
+SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/ssh-agent.socket
 SSH_ASKPASS=/usr/lib/ssh/ssh-askpass
 SSH_ASKPASS_REQUIRE=force
 EOF
