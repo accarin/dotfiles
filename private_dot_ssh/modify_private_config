@@ -4,6 +4,24 @@
 {{- $homeDir := .chezmoi.homeDir }}
 
 {{- /* --------------------------------------------------------
+     Resolve per-machine override for ssh_agent.enabled (same
+     pattern as run_onchange_setup-ssh-agent.sh.tmpl). Controls
+     whether we emit AddKeysToAgent below -- meaningless without
+     a running agent.
+     -------------------------------------------------------- */ -}}
+
+{{- $ssh_agent_enabled := .ssh_agent.enabled }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "ssh_agent" }}
+{{-     $machineSshAgent := index $machine "ssh_agent" }}
+{{-     if hasKey $machineSshAgent "enabled" }}
+{{-       $ssh_agent_enabled = index $machineSshAgent "enabled" }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+{{- /* --------------------------------------------------------
      Resolve per-machine overrides for ssh_hosts: merged with the
      global list, keyed by `host`. A machine override entry with
      the same `host` as a global entry replaces it; override-only
@@ -98,6 +116,15 @@ Host {{ .host }}
     {{ $k }} {{ $v }}
 {{-   end }}
 {{- end }}
+{{ end }}
+{{ if $ssh_agent_enabled }}
+# Cache successfully-used identities (PIN-unlocked FIDO2 key handles) in the
+# running ssh-agent, so a manual `ssh-add` is never needed after reboot --
+# the first ssh/git connection each boot populates the agent as a side
+# effect. Touch is still required per-connection (enforced by the
+# authenticator itself for +presence keys), only the PIN prompt is cached.
+Host *
+    AddKeysToAgent yes
 {{ end }}
 # Everything between the two markers below is yours: chezmoi preserves it
 # untouched across every "chezmoi apply". Put manual additions there, not
