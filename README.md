@@ -99,45 +99,64 @@ Both fish and zsh ship with these shortcuts out of the box:
 
 ```
 ~/.local/share/chezmoi/
-├── .chezmoi.toml.tmpl          # Bootstraps chezmoi config, prompts for machine_type etc.
-├── .chezmoiignore              # Conditionally ignores files per machine type
-├── .chezmoiscripts/            # Scripts that run on apply (e.g. package installs)
-├── dot_gitconfig.tmpl          # → ~/.gitconfig
-├── dot_zshrc.tmpl              # → ~/.zshrc
-└── dot_config/
-    ├── fish/config.fish.tmpl   # → ~/.config/fish/config.fish
-    ├── kitty/                  # → ~/.config/kitty/
-    ├── niri/                   # → ~/.config/niri/ (skipped on servers)
-    └── starship/               # → ~/.config/starship/
+├── .chezmoi.toml.tmpl        # Init prompts (machine_type, git identity); git autoCommit/autoPush
+├── .chezmoidata.toml         # Static data: FIDO2 key pool, ssh-agent flags, SSH host entries
+├── .chezmoiignore            # Gates files per machine_type (see below)
+├── .chezmoiremove            # Deletes retired targets (e.g. legacy ~/.zshrc)
+├── .chezmoiscripts/          # run_onchange_ scripts (see below)
+├── dot_bashrc.tmpl           # → ~/.bashrc (server + wsl only)
+├── dot_gitconfig.tmpl        # → ~/.gitconfig
+├── dot_face                  # → ~/.face (avatar)
+├── dot_config/
+│   ├── fish/                 # → ~/.config/fish/ (desktops only; eza/bat/rg/fd aliases, functions)
+│   ├── kitty/                # → ~/.config/kitty/
+│   ├── niri/                 # → ~/.config/niri/ (desktops only; modular cfg/*.kdl, own README)
+│   └── starship/             # → ~/.config/starship/ (desktops only)
+└── private_dot_ssh/
+    ├── modify_private_config # Generates the managed part of ~/.ssh/config
+    └── private_sockets/      # Keeps ~/.ssh/sockets/ around (ControlMaster)
 ```
 
 **Naming conventions** chezmoi uses to map source → target:
 
-| Source name | Target name |
+| Source name | Meaning |
 |---|---|
 | `dot_foo` | `.foo` |
-| `foo.tmpl` | `foo` (rendered as a [Go template](https://pkg.go.dev/text/template)) |
-| `run_onchange_*.sh` | Script that runs when its content changes |
+| `foo.tmpl` | Rendered as a [Go template](https://pkg.go.dev/text/template) |
+| `private_foo` | Mode 0600/0700 |
+| `modify_foo` | Template that rewrites only part of an existing target file |
+| `empty_foo` | Deploy even if empty (used as a `.keep`) |
+| `run_onchange_*.sh` | Script that re-runs whenever its content changes |
+
+### Per-machine logic
+
+Two mechanisms, both driven by data:
+
+- **`machine_type`** (asked once at init) gates whole files via `.chezmoiignore`: desktops (`workstation`/`gaming`/`notebook`) get fish + starship + niri; `server`/`wsl` get bash instead.
+- **Per-hostname overrides** in `.chezmoidata.toml`: a `[machines.<hostname>.…]` table replaces the global value of the same key. Used to enable U2F/ssh-agent or add SSH hosts on specific boxes only.
+
+### Scripts (`.chezmoiscripts/`)
+
+| Script | Does |
+|---|---|
+| `install-packages` | pacman on Arch desktops, apt on Debian servers/wsl; sets login shell |
+| `setup-pam-fido2` | Deploys pam-u2f keys for sudo/login (machines with `u2f.enabled`) |
+| `setup-ssh-agent` | Enables the systemd user `ssh-agent.socket` (machines with `ssh_agent.enabled`) |
+
+### SSH config generation
+
+`private_dot_ssh/modify_private_config` rebuilds the managed section of `~/.ssh/config` from the `ssh_hosts` entries in `.chezmoidata.toml` (keyed by the OS username chezmoi runs as), adds `AddKeysToAgent yes` where the agent is enabled, and never touches anything below the `### MANUAL OVERRIDE BLOCK ###` marker.
 
 ### Adding a new config file
 
 ```sh
-# 1. Track the file
-chezmoi add ~/.config/something/config
-
-# 2. Optionally turn it into a template (adds .tmpl suffix)
-chezmoi chattr +template ~/.config/something/config
-
-# 3. Edit it
-chezmoi edit ~/.config/something/config
-
-# 4. Apply and verify
-chezmoi apply && chezmoi diff
+chezmoi add ~/.config/something/config       # 1. Track it
+chezmoi chattr +template ~/.config/something/config  # 2. Optional: make it a template
+chezmoi edit ~/.config/something/config      # 3. Edit the source
+chezmoi apply && chezmoi diff                # 4. Apply and verify
 ```
 
-Inside templates, `{{ .machine_type }}` and other variables from `.chezmoi.toml.tmpl` are available. Use `chezmoi data` to see everything that's in scope.
-
-To conditionally deploy a file only on certain machine types, add a rule to `.chezmoiignore`:
+Inside templates, `{{ .machine_type }}` and everything from `.chezmoi.toml.tmpl` / `.chezmoidata.toml` is in scope — inspect with `chezmoi data`. To gate a file per machine type, add a rule to `.chezmoiignore`:
 
 ```
 {{- if eq .machine_type "server" }}
