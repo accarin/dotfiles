@@ -21,23 +21,25 @@ chezmoi is available in a lot of package managers ([full list](https://www.chezm
 pacman -S chezmoi
 ```
 
-**Debian/Ubuntu** — works, but the package can be outdated. Use the curl method below instead:
-```sh
-apt install chezmoi
-```
-
-**curl** — always installs the latest binary, recommended for Debian/Ubuntu and anything else:
+**Debian/Ubuntu** — always installs the latest binary, required for Debian/Ubuntu and anything else without a native package:
 ```sh
 sh -c "$(curl -fsLS get.chezmoi.io)" -- -b ~/.local/bin
 ```
 
 ### 2. Apply this repo
 
+> [!IMPORTANT]
+> If you just installed via curl, `~/.local/bin` isn't on `PATH` yet in the current shell (it only gets added once this repo's shell config is applied). Use the full path for this first call:
+> ```sh
+> ~/.local/bin/chezmoi init --apply accarin
+> ```
+> New shells will have `chezmoi` on `PATH` automatically from then on.
+
 ```sh
 chezmoi init --apply accarin
 ```
 
-Or combine install + init in one shot (curl only):
+Or combine install + init in one shot (curl only) — no PATH issue since it's called directly:
 ```sh
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply accarin
 ```
@@ -58,7 +60,6 @@ That's it. chezmoi applies all files, runs the package-install script, and pushe
 |---|---|
 | pacman | `pacman -Syu` |
 | curl / binary | `chezmoi upgrade` |
-| apt | `apt upgrade chezmoi` |
 
 ---
 
@@ -70,7 +71,7 @@ That's it. chezmoi applies all files, runs the package-install script, and pushe
 | `chezmoi apply --dry-run --verbose` | Dry run — show exactly what would change without touching anything |
 | `chezmoi diff` | Preview what `apply` would change |
 | `chezmoi add ~/.config/foo` | Track a new file |
-| `chezmoi edit ~/.zshrc` | Edit the source file and apply on save |
+| `chezmoi edit ~/.bashrc` | Edit the source file and apply on save |
 | `chezmoi re-add` | Sync source with changes made directly in `~` |
 | `chezmoi update` | Pull latest from Git and apply |
 | `chezmoi cd` | Jump into the source repo |
