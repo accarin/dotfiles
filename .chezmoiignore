@@ -19,6 +19,7 @@ README.md
 {{- if ne .machine_type "gaming" }}
 .config/gamemode
 .config/mangohud
+.config/environment.d/10-gamescope-session.conf
 .local/share/lutris
 {{- end }}
 
