@@ -1,0 +1,54 @@
+{{/* chezmoi:modify-template */}}
+{{- /* --------------------------------------------------------
+     VS Code's real argv.json lives at ~/.vscode/argv.json (NOT
+     ~/.config/Code/), and VS Code itself writes machine-specific
+     fields into it (enable-crash-reporter, crash-reporter-id).
+     Rather than overwrite the whole file, parse the existing JSON
+     (stripping // comments first, since argv.json is JSONC and Go's
+     encoding/json can't handle comments) and merge our overrides in,
+     so VS Code-managed fields survive every "chezmoi apply".
+     -------------------------------------------------------- */ -}}
+
+{{- $existing := .chezmoi.stdin }}
+{{- $cleaned := regexReplaceAll "(?m)^[ \t]*//.*$" $existing "" }}
+
+{{- $data := dict }}
+{{- if ne (trim $cleaned) "" }}
+{{-   $data = $cleaned | fromJson }}
+{{- end }}
+
+{{- $data = mergeOverwrite $data (dict
+      "password-store" "gnome-libsecret"
+      "ozone-platform-hint" "auto"
+      "enable-features" "WaylandWindowDecorations"
+      "enable-wayland-ime" true
+    ) -}}
+// This file is managed by chezmoi (dot_vscode/modify_argv.json in the
+// dotfiles repo). VS Code's own fields (enable-crash-reporter,
+// crash-reporter-id, etc.) are preserved as-is; only the keys below are
+// enforced on every "chezmoi apply":
+//
+//   password-store     Force the libsecret (gnome-keyring) backend.
+//                       Electron's auto-detection keys off
+//                       $XDG_CURRENT_DESKTOP / $DESKTOP_SESSION, neither of
+//                       which niri (or most wlroots compositors) sets to a
+//                       recognized value -- it silently falls back to the
+//                       plaintext "basic" store instead of gnome-keyring,
+//                       breaking Settings Sync auth, the GitHub/Copilot
+//                       device token, and any extension's SecretStorage.
+//
+//   ozone-platform-hint Prefer the native Wayland Ozone backend over
+//                       XWayland when a Wayland session is detected
+//                       (sharper rendering, correct fractional scaling).
+//                       "auto" falls back to X11 cleanly otherwise.
+//
+//   enable-features     WaylandWindowDecorations -- wlroots compositors
+//                       (niri, Hyprland, Sway, ...) don't draw server-side
+//                       decorations, so this makes VS Code draw its own
+//                       client-side title bar/resize border instead of
+//                       having none. Pair with the "window.titleBarStyle":
+//                       "custom" user setting for a consistent look.
+//
+//   enable-wayland-ime  Wayland input-method support (CJK/IME); a harmless
+//                       no-op otherwise.
+{{ $data | toPrettyJson }}

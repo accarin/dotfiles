@@ -12,7 +12,7 @@ README.md
 .config/wofi
 .config/mako
 .config/hypr
-.config/Code
+.vscode/argv.json
 {{- end }}
 
 # --- Gaming-only configs ---

@@ -109,11 +109,12 @@ Both fish and zsh ship with these shortcuts out of the box:
 ├── dot_gitconfig.tmpl        # → ~/.gitconfig
 ├── dot_face                  # → ~/.face (avatar)
 ├── dot_config/
-│   ├── Code/                 # → ~/.config/Code/ (desktops only; argv.json: gnome-keyring + Wayland tweaks)
 │   ├── fish/                 # → ~/.config/fish/ (desktops only; eza/bat/rg/fd aliases, functions)
 │   ├── kitty/                # → ~/.config/kitty/
 │   ├── niri/                 # → ~/.config/niri/ (desktops only; modular cfg/*.kdl, own README)
 │   └── starship/             # → ~/.config/starship/ (desktops only)
+├── dot_vscode/
+│   └── modify_argv.json      # → ~/.vscode/argv.json (desktops only; merges gnome-keyring + Wayland tweaks into VS Code's own file, preserving its crash-reporter-id)
 └── private_dot_ssh/
     ├── modify_private_config # Generates the managed part of ~/.ssh/config
     └── private_sockets/      # Keeps ~/.ssh/sockets/ around (ControlMaster)
