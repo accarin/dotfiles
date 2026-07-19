@@ -91,10 +91,10 @@ identity_file = "~/.key/ssh.github.u2f-kvm.key"
 [machines.deep-thought.ssh_agent]
 enabled = true
 
-[[machines.deep-thought.ssh_hosts.accarin.entries]]
-host          = "oebb.ghe.com"
-user          = "git"
-identity_file = "~/.key/ssh.oebb.ghe.key"
+# [[machines.deep-thought.ssh_hosts.accarin.entries]]
+# host          = "oebb.ghe.com"
+# user          = "git"
+# identity_file = "~/.key/ssh.oebb.ghe.key"
 
 [[machines.deep-thought.ssh_hosts.accarin.entries]]
 host          = "nxs-1.nxs.internal"
@@ -107,6 +107,14 @@ host          = "atm-1.nxs.internal"
 user          = "admin"
 identity_file = "~/.key/ssh.atm-1.nxs.internal.u2f-kvm.key"
 port          = 62022
+
+[machines.pc46379.ssh_agent]
+enabled = true
+
+[[machines.pc46379.ssh_hosts.accarin.entries]]
+host          = "oebb.ghe.com"
+user          = "git"
+identity_file = "~/.key/ssh.oebb.ghe.u2f-t2-mini2.key"
 
 # TODO: placeholder — replace "your-debian-server" with the real hostname
 # (as reported by `.chezmoi.hostname`, i.e. `hostname -s` on that box) and
