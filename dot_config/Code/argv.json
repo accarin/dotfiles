@@ -1,0 +1,29 @@
+{
+    // Force the libsecret (gnome-keyring) backend for VS Code's secret storage.
+    // Electron's backend auto-detection keys off $XDG_CURRENT_DESKTOP /
+    // $DESKTOP_SESSION, neither of which niri (or most wlroots compositors)
+    // sets to a value it recognizes -- it silently falls back to the "basic"
+    // (plaintext, unencrypted) store instead of talking to gnome-keyring.
+    // That breaks Settings Sync auth, the GitHub/Copilot device token, and
+    // any extension using the SecretStorage API. Requires gnome-keyring +
+    // libsecret installed and unlocked (handled by PAM on login for us).
+    "password-store": "gnome-libsecret",
+
+    // --- Wayland tweaks (wlroots compositors: niri, Hyprland, Sway, ...) ---
+
+    // Prefer the native Wayland Ozone backend over XWayland when a Wayland
+    // session is detected -- sharper rendering, correct fractional scaling,
+    // no XWayland blur/scaling mismatches. "auto" falls back to X11 cleanly
+    // if VS Code is ever launched outside a Wayland session.
+    "ozone-platform-hint": "auto",
+
+    // wlroots compositors don't draw server-side window decorations, so
+    // without this Electron renders with no title bar/resize border. Makes
+    // VS Code draw its own client-side decorations instead. Pair with the
+    // "window.titleBarStyle": "custom" user setting for a consistent look.
+    "enable-features": "WaylandWindowDecorations",
+
+    // Wayland input-method support (needed for CJK/IME input); a harmless
+    // no-op otherwise.
+    "enable-wayland-ime": true
+}

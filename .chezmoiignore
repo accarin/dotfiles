@@ -12,6 +12,7 @@ README.md
 .config/wofi
 .config/mako
 .config/hypr
+.config/Code
 {{- end }}
 
 # --- Gaming-only configs ---
