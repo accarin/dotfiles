@@ -19,6 +19,7 @@
 
 {{- $data = mergeOverwrite $data (dict
       "terminal.integrated.automationProfile.linux" (dict "path" "/usr/bin/bash")
+      "terminal.integrated.defaultProfile.linux" "bash"
     ) -}}
 // This file is managed by chezmoi (dot_config/Code/User/modify_settings.json
 // in the dotfiles repo). All your other settings are preserved as-is; only
@@ -32,4 +33,16 @@
 //     getting confused by fish syntax when it writes bash-style commands.
 //     Override per-project via that project's own .vscode/settings.json
 //     with the same key, which takes precedence over this user setting.
+//
+//   terminal.integrated.defaultProfile.linux
+//     TEMPORARY WORKAROUND (added 2026-07-22): automationProfile above is
+//     currently NOT honored by the chat "run in terminal" tool -- confirmed
+//     by testing (fresh terminals still spawn fish even after a full VS
+//     Code restart with automationProfile correctly set). Matches known
+//     upstream bug: https://github.com/microsoft/vscode/issues/309502
+//     ("RunInTerminalTool ignores automationProfile"). Until that's fixed,
+//     also forcing the INTERACTIVE default shell to bash here, trading away
+//     fish in every VS Code terminal (not just automation ones) to stop
+//     Copilot wasting tokens on fish/bash syntax confusion. Revert this key
+//     (leave automationProfile in place) once #309502 is fixed upstream.
 {{ $data | toPrettyJson }}
