@@ -123,3 +123,53 @@ identity_file = "~/.key/ssh.oebb.ghe.u2f-t2-mini2.key"
 # host          = "github.com"
 # user          = "git"
 # identity_file = "~/.key/ssh.github.admin.key"
+
+# =============================================================================
+# DNS-over-TLS (DoT) via systemd-resolved, using a per-machine AdGuard clientId
+# =============================================================================
+
+# Global default — DoT disabled unless explicitly enabled per machine
+[dot]
+enabled = false
+# The DoT resolver's IP address. Pushed to systemd-resolved as
+# {dns_server_ip}#{clientId}.{dns_suffix} (SNI-based clientId routing).
+# Global only -- NOT overridable per machine.
+dns_server_ip = "91.98.82.105"
+# {clientId}.<dns_suffix> is the DNS server name pushed to systemd-resolved
+dns_suffix    = "dns.tautschnig.org"
+# Where to register/whitelist a new clientId before enabling DoT on a machine
+dashboard_url = "https://dns.nxs.tautschnig.org"
+# Fallback resolvers written into /etc/docker/daemon.json's "dns" list on
+# any DoT-enabled machine that has Docker installed (Docker's embedded DNS
+# proxy ignores systemd-resolved's loopback stub and needs explicit
+# resolvers), AND appended to the DNS= line in dot.conf as DNSOverTLS
+# failover servers (systemd-resolved only switches to these on an actual
+# error from dns_server_ip, e.g. timeout -- not load-balanced/leaked to on
+# every query). Since DNSOverTLS=yes applies to the whole DNS= list, each
+# fallback IP needs its own SNI hostname (dns_fallback_N) matching its DoT
+# certificate. Global only -- NOT overridable per machine.
+dns_fallback_ip_1 = "1.1.1.1"
+dns_fallback_1    = "cloudflare-dns.com"
+dns_fallback_ip_2 = "9.9.9.9"
+dns_fallback_2    = "dns.quad9.net"
+
+# Per-machine overrides, keyed by hostname.
+# Enabling DoT on a machine REQUIRES a client_id (24 random lowercase
+# letters/digits [a-z0-9]) registered/whitelisted in the AdGuard dashboard
+# above. If DoT is enabled here without a client_id, the onchange script
+# stops with a warning, suggests a freshly generated client_id, and prints
+# the dashboard link — nothing is deployed until client_id is filled in.
+#
+# interface_match (optional) overrides the wired-interface glob matched by
+# the NetworkManager conf.d drop-in that stops DHCP from overriding the DoT
+# config -- defaults to "enp*" if unset. WiFi devices (type:wifi) are
+# always matched too, regardless of this setting.
+#
+# [machines.hitchhiker.dot]
+# enabled         = true
+# client_id       = "<clientId>"
+# interface_match = "enp*"
+#
+[machines.deep-thought.dot]
+enabled   = true
+client_id = "9rq4yk6n7pk79o6vj3vjwo67"
