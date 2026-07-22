@@ -42,4 +42,10 @@ dot_bashrc
 {{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
 .config/starship
 {{- end }}
+# VS Code automation-shell override only matters where fish is the
+# interactive default (desktop/gaming); server + wsl already default to
+# bash interactively, so skip it there.
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
+.config/Code/User/settings.json
+{{- end }}
 

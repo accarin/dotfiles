@@ -1,0 +1,35 @@
+{{/* chezmoi:modify-template */}}
+{{- /* --------------------------------------------------------
+     VS Code's User settings.json is actively rewritten by both
+     the user (Settings UI) and VS Code itself (theme picks,
+     survey-prompt timestamps, extension state, etc). Rather than
+     manage the whole file, parse the existing JSON (stripping //
+     comments first, since settings.json is JSONC and Go's
+     encoding/json can't handle comments) and merge our overrides
+     in, so everything else survives every "chezmoi apply".
+     -------------------------------------------------------- */ -}}
+
+{{- $existing := .chezmoi.stdin }}
+{{- $cleaned := regexReplaceAll "(?m)^[ \t]*//.*$" $existing "" }}
+
+{{- $data := dict }}
+{{- if ne (trim $cleaned) "" }}
+{{-   $data = $cleaned | fromJson }}
+{{- end }}
+
+{{- $data = mergeOverwrite $data (dict
+      "terminal.integrated.automationProfile.linux" (dict "path" "/usr/bin/bash")
+    ) -}}
+// This file is managed by chezmoi (dot_config/Code/User/modify_settings.json
+// in the dotfiles repo). All your other settings are preserved as-is; only
+// the key(s) below are enforced on every "chezmoi apply":
+//
+//   terminal.integrated.automationProfile.linux
+//     Forces bash (not fish) for automation terminals -- the ones VS Code
+//     tasks/debug configs and Copilot's agent tool use to run shell
+//     commands -- while leaving terminal.integrated.defaultProfile.linux
+//     (fish) untouched for terminals you open yourself. Fixes Copilot
+//     getting confused by fish syntax when it writes bash-style commands.
+//     Override per-project via that project's own .vscode/settings.json
+//     with the same key, which takes precedence over this user setting.
+{{ $data | toPrettyJson }}
