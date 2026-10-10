@@ -107,6 +107,24 @@ AUR_PKGS=(
     aur/quickshell-git
 )
 
+{{-   $netbird_enabled := .netbird.enabled }}
+{{-   $hostname := .chezmoi.hostname }}
+{{-   if hasKey .machines $hostname }}
+{{-     $machine := index .machines $hostname }}
+{{-     if hasKey $machine "netbird" }}
+{{-       $machineNetbird := index $machine "netbird" }}
+{{-       if hasKey $machineNetbird "enabled" }}
+{{-         $netbird_enabled = index $machineNetbird "enabled" }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{-   if $netbird_enabled }}
+AUR_PKGS+=(
+    # Not in the official repos; setup is done by run_onchange_after_setup-netbird.sh.tmpl
+    aur/netbird
+)
+{{-   end }}
+
 {{-   if eq .machine_type "gaming" }}
 PACMAN_PKGS+=(
     steam

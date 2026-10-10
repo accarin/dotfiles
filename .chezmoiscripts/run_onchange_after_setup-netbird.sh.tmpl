@@ -1,0 +1,82 @@
+#!/bin/bash
+# run_onchange_after_setup-netbird.sh.tmpl
+# Sets up the netbird daemon (Arch desktops only; Debian servers/wsl are
+# managed via ansible). The interactive login is only recommended, never run.
+set -euo pipefail
+
+{{- /* --------------------------------------------------------
+     Resolve per-machine overrides
+     -------------------------------------------------------- */ -}}
+
+{{- $enabled := .netbird.enabled }}
+{{- $management_url := .netbird.management_url }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "netbird" }}
+{{-     $machineNetbird := index $machine "netbird" }}
+{{-     if hasKey $machineNetbird "enabled" }}
+{{-       $enabled = index $machineNetbird "enabled" }}
+{{-     end }}
+{{-     if hasKey $machineNetbird "management_url" }}
+{{-       $management_url = index $machineNetbird "management_url" }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
+
+echo "==> netbird setup skipped (not applicable to {{ .machine_type }} machines)."
+
+{{- else if not $enabled }}
+
+echo "==> netbird setup skipped (not enabled for {{ $hostname }})."
+
+{{- else }}
+
+{{- if not (mustRegexMatch "^https://[A-Za-z0-9._:/-]+$" $management_url) }}
+{{-   fail (printf "netbird.management_url must be an https:// URL (got %q)" $management_url) }}
+{{- end }}
+
+MANAGEMENT_URL={{ $management_url | quote }}
+
+if ! command -v netbird &>/dev/null; then
+    echo "==> netbird is not installed; skipping setup (check the AUR install in install-packages)." >&2
+    exit 1
+fi
+
+# `netbird service install` fails if the unit already exists, so guard it.
+# The AUR package only ships the netbird@.service template, so a plain
+# netbird.service here can only come from `netbird service install`.
+if ! systemctl cat netbird.service &>/dev/null; then
+    echo "==> Installing netbird service..."
+    sudo netbird service install
+fi
+
+if ! systemctl is-active --quiet netbird.service; then
+    echo "==> Starting netbird service..."
+    sudo netbird service start
+fi
+
+# Give the daemon a moment to create its control socket before querying it
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    [ -S /var/run/netbird.sock ] && break
+    sleep 1
+done
+
+# `netbird status` prints "Management: Connected" once logged in and up
+if ! netbird status 2>/dev/null | grep -q '^Management: Connected'; then
+    cat <<EOF
+
+==> netbird is installed and running, but not connected yet.
+    Log in once (interactive, opens your browser for SSO):
+
+        netbird up --management-url $MANAGEMENT_URL
+
+EOF
+fi
+
+{{- end }}
+
+echo "==> netbird setup complete."

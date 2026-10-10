@@ -69,6 +69,25 @@ enabled = true
 enabled = true
 
 # =============================================================================
+# netbird (WireGuard overlay network client) — Arch desktops only.
+# Debian servers/wsl are excluded (netbird is managed via ansible there).
+# =============================================================================
+
+# Global default — enabled on every Arch desktop (workstation/gaming/notebook).
+# Installs aur/netbird, runs `sudo netbird service install` + `service start`
+# (run_onchange_after_setup-netbird.sh.tmpl) and, if the client isn't connected
+# yet, recommends the one-time interactive login:
+#   netbird up --management-url <management_url>
+[netbird]
+enabled        = true
+management_url = "https://nexus.tautschnig.org"
+
+# Per-machine overrides, keyed by hostname (any of the keys above).
+# [machines.silverhand.netbird]
+# enabled = false
+
+
+# =============================================================================
 # ssh-agent (systemd --user) — used for VS Code + devcontainers git access
 # =============================================================================
 
@@ -260,3 +279,4 @@ enabled = true
 [machines.hitchhiker.caelestia.monitor]
 output = "eDP-1"
 scale  = 1.5
+

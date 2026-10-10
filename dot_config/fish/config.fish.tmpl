@@ -79,11 +79,11 @@ abbr gco 'git checkout'
 abbr gsh 'git show'
 
 # --- chezmoi shortcut ---
-alias cm   chezmoi
-alias cmu  'chezmoi update -v'
-alias cmt  'chezmoi apply --dry-run --verbose'
-alias cma  'chezmoi apply -v'
-alias cmd  'chezmoi diff'
+alias cm   'chezmoi --no-pager'
+alias cmu  'chezmoi --no-pager update -v'
+alias cmt  'chezmoi --no-pager apply --dry-run --verbose'
+alias cma  'chezmoi --no-pager apply -v'
+alias cmd  'chezmoi --no-pager diff'
 
 # --- Greeting ---
 function fish_greeting

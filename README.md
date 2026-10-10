@@ -148,6 +148,23 @@ Two mechanisms, both driven by data:
 | `setup-00-vaultlet` | Installs vaultlet (`vlt`, local secret manager) per its QUICKSTART on machines with `vaultlet.enabled`; runs first (`before_`) so later scripts can use `vlt`. Only when no trace of an installation exists |
 | `setup-ssh-agent` | Enables the systemd user `ssh-agent.socket` (machines with `ssh_agent.enabled`) |
 | `setup-caelestia` | Runs `caelestia install`/`update` (machines with `caelestia.enabled`), only re-triggered by bumping `caelestia.pinned_rev` |
+| `setup-netbird` | Installs + starts the netbird service on Arch desktops (`netbird.enabled`, default on) and recommends the one-time `netbird up` login |
+
+### Netbird
+
+Arch desktops only (Debian servers/wsl are managed via ansible). On by default;
+opt out or change the URL per machine via `[machines.<hostname>.netbird]`
+(`enabled`, `management_url`) in `.chezmoidata.toml`; the global
+`netbird.management_url` is the default.
+
+`install-packages` installs `aur/netbird`, `setup-netbird` runs
+`sudo netbird service install` / `service start` (guarded, so it's safe to
+re-run). Logging in is interactive (SSO in the browser) and is **not** run by
+chezmoi — if the client isn't connected, the apply output tells you to run:
+
+```sh
+netbird up --management-url https://nexus.tautschnig.org
+```
 
 ### Caelestia (Hyprland shell/rice)
 
