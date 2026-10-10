@@ -60,7 +60,7 @@ enabled = false
 [[ssh_hosts.accarin.entries]]
 host          = "github.com"
 user          = "git"
-identity_file = "~/.key/ssh.github.u2f-kvm.key"
+identity_file = "~/.key/ssh.github.key"
 
 # NOTE: ssh_hosts (and u2f_keys) are keyed by the *OS username* chezmoi runs
 # as on that machine (`.chezmoi.username`), not by "which person you are" --
