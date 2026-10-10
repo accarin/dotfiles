@@ -6,5 +6,15 @@
   https://github.com/caelestia-dots/cli#configuring
   Starts empty on purpose -- fill in real overrides once caelestia is
   installed and you know what you want to change.
+
+  theme.enableChromium is off: `caelestia scheme set` then runs
+  `brave --refresh-platform-policy --no-startup-window`, which never exits
+  with Brave 154 (reproduced on deep-thought and hitchhiker), hanging the
+  command. Brave still reads the already-written policy file in
+  /etc/brave/policies/managed on startup. Re-enable once fixed upstream.
 */ -}}
-{}
+{
+  "theme": {
+    "enableChromium": false
+  }
+}
