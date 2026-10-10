@@ -273,7 +273,7 @@ enabled = true
 [machines.hitchhiker.caelestia]
 enabled = true
 
-[machines.deep-thought.silverhand]
+[machines.silverhand.caelestia]
 enabled = true
 
 # Built-in laptop panel: Hyprland defaults to scale 1, far too small on a
