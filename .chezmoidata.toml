@@ -1,3 +1,31 @@
+# =============================================================================
+# vaultlet (local secret manager, `vlt` CLI) — opt-in per machine.
+# =============================================================================
+
+# Global default — vaultlet is not managed unless enabled per machine.
+# When enabled, run_onchange_before_setup-00-vaultlet.sh.tmpl installs vaultlet
+# following vaultlet's QUICKSTART.md ONLY if no trace of an installation exists
+# (state file, config/data dirs, systemd units, service account, client config).
+# An existing or half-installed vaultlet is never modified, purged or reinstalled.
+# Other chezmoi scripts (e.g. DoT) read their secrets from it via `vlt`.
+[vaultlet]
+enabled           = false
+# native | docker | podman. Cannot be changed on an existing installation
+# without a manual `vlt apply vaultlet --delete --purge`.
+installation_type = "native"
+# latest-stable | latest-prerelease | an exact version such as "26.9.1"
+version           = "latest-prerelease"
+# Identity name of the client enrolled for this user.
+client_name       = "admin-client"
+
+# Per-machine overrides, keyed by hostname (any of the keys above).
+[machines.deep-thought.vaultlet]
+enabled           = true
+
+# Per-machine overrides, keyed by hostname (any of the keys above).
+[machines.hitchhiker.vaultlet]
+enabled           = true
+
 # Global default — u2f disabled unless explicitly enabled per machine
 [u2f]
 enabled = false
@@ -11,16 +39,16 @@ keys = [
     "/8fkYCZ7eGZR/Zx1x9dHu7fmQ8jU/R7A+n8jJ37Gees7m/wL+MbMfyv3oma9NUPpkG/+Dw3gCknHp1H57GW9UZBg9nVO9ekCoQq9tRLPvIJUUHPpXr/glkFtwooH1ye2,8urXdJioft3atHk21gA73Em3QCczObFgXcoTWMUrTkzQPoXUVG/kynfZebO8XKTJM+mydAM7PiwQN/HnEIwKqA==,es256,+presence+pin",
     # T2 Maxi M2
     "coIN8GsTDBR9pV4lUsxYY4NO0Tn0Ex/juTULr57jB0ozJ14i0HGtpyQlT1si0XjjyfUAeKEFwxqj9ZmzE3swFokSVWcdEJMsTgeTAGM8UEf+apdeXZNJJW9kl78TaXNW,mP87xirOAy6UzjoZLjBzNhXjYH3wQPIl/2tNkWsduZVC3CUaD5kyQrdirYLr+WpDn1Vy2aXT2YHVSVFyqsYPfg==,es256,+presence+pin",
-    # T2 Mini U1
+    # T2 Mini U1 Work
     "DzT+bHhlz8zwwNmHgqKrzjrgPFTcMVFUUoKFiLuQI1xgCK/A/I09TV1D5RtOEtSoFA7DnnYGxfJbPNjl1CA3KM/CYnmkXDTLvHXbt+UdZxAXrKk3eGuYvXzn4ZqQKuEQ,kMjyQDDrL94Bk9AOee40eKoPQlgcb9Hu7wih2pkvUlOKnofjXkYpnLv54SNjyuaejRLBx5n2IRs9vKkoYVi+Cw==,es256,+presence+pin",
-    # T2 Mini U2
-    "o2wn9dAVwD4Pb2uYVRii7KXlIQdGYJ54HoKhte31cb4jod2EYyiNmdRXYjFxwu9NmDCEwaDDtt9sigLm6EY9K1pvxn563lBC4Ex1pKkovR8ws1r/OFvLseZY+1B0V1FR,3s8EwR8XfZ7n/U8P4ssZxf+MLvNZmCV9yZgTX0WV3l8Ae+K311WmwfbHeiOssgBId1VI4SOxXARMYWmffq4hvQ==,es256,+presence+pin",
-    # T2 Mini C1
+    # T2 Mini U2 KVM
+    "7vOYq+d1DKmNV7p6G4lOzduITTfI99YZs8Y1jlPPb0ED0LXF8qaADXU6lmq0zBj11BMEWTT4iN0UtT3RrI+mR+oYgD7QzNn/AhVMYYWpGPEoBOYmhahtxrTsSKOMt099,PEWE2lr5rKRa80PLLjSF57c228gQSjNtkAK2aHbH9EEMfCzU51sapWGByMti3wgUbW+ToGUIQx4pJMlfh5w2dA==,es256,+presence+pin",
+    # T2 Mini C1 HH
     "CNWA2pmOMzCMhS0TkJmtUAg5e06k4di7Dc38OV2rWGj3QTYrP24+F2wGBsmaweyOwA5SyjjB2FOTdLw9JV8IhTMsyZzjq5uKX+/8TNtN6jn4VG7pveInFh4F6g4MJSOQ,zgYbtEFORf6ttKf1c5SQW/w9xWOU6jllrjsLfEs3RWhQvrFNaq2oZNDWEX4DfeyJm1AtKNIiPg6tCpPkKj4KDQ==,es256,+presence+pin",
     # Legacy Mobile
     "YMIjWf1sQR1Jl12hwYSfvlwJaY7+fWhJDv87paY2lai1T6pI0tzfh1NLqSz7MVqat9VcA/31M7Qw5f1JNf4jIQ==,Fa1jUCPcXoWk4Dyf23c0nkJs/27YB3VEgT26PAayb1p/E4lljVQT+qN+RqdXHvxaf8Nk6sEMMnQOm8HD2urQYw==,es256,+presence+pin",
     # Legacy Home
-    "uxnJwPTdnsqPjrMlZSmpgZaDIUW4npfbZi584rLYfdRkMj3sAwFX+TUYtSHKZItVTl7a5d3e11f7keJWw/IiGg==,2aUTLHBiUK7BVrn0DtXyRxWtP/bTbMI1qiNsuvtU8Se8rU9iorZqHUI+x0MA6MuHbEsDhYY/lPgWYTe7L3QcOw==,es256,+presence+pin",
+    "aXS4HcfdQ3Oyt5Qn8yqcSpibUG+BEVYeEVNtwKyVXJe7tb6UVCsFk0s+3P1X0ZhPtmtv2f+3sI6t/OxjyoLo3Q==,DDMIxWXOVJ2NaI8wv+n27dGvd2uMIj3ySupyOEbhIsl/XI0XdFKskcBx88EbxNt3mZ6gkZBQfNPx7orGCKByKg==,es256,+presence+pin",
 ]
 
 # Per-machine overrides, keyed by hostname
@@ -178,14 +206,14 @@ dns_fallback_2    = "dns.quad9.net"
 [machines.deep-thought.dot]
 enabled   = true
 
-[machines.silverhand.dot]
-enabled   = true
+# [machines.silverhand.dot]
+# enabled   = true
 
-[machines.pc46379.dot]
-enabled   = true
+# [machines.pc46379.dot]
+# enabled   = true
 
-[machines.hitchhiker.dot]
-enabled   = true
+# [machines.hitchhiker.dot]
+# enabled   = true
 
 # =============================================================================
 # caelestia (Hyprland shell/rice) — opt-in per machine.

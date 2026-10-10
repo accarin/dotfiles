@@ -145,6 +145,7 @@ Two mechanisms, both driven by data:
 |---|---|
 | `install-packages` | pacman on Arch desktops, apt on Debian servers/wsl; sets login shell |
 | `setup-pam-fido2` | Deploys pam-u2f keys for sudo/login (machines with `u2f.enabled`) |
+| `setup-00-vaultlet` | Installs vaultlet (`vlt`, local secret manager) per its QUICKSTART on machines with `vaultlet.enabled`; runs first (`before_`) so later scripts can use `vlt`. Only when no trace of an installation exists |
 | `setup-ssh-agent` | Enables the systemd user `ssh-agent.socket` (machines with `ssh_agent.enabled`) |
 | `setup-caelestia` | Runs `caelestia install`/`update` (machines with `caelestia.enabled`), only re-triggered by bumping `caelestia.pinned_rev` |
 
@@ -163,6 +164,27 @@ in `.chezmoidata.toml`, so it's never re-triggered on every `chezmoi apply`.
 `pipewire` is disabled per-machine as needed — see
 [caelestia-implementation-plan.md](caelestia-implementation-plan.md) §7.2
 for why (CachyOS's PipeWire rebuild vs. caelestia's manifest-pinned version).
+
+### Vaultlet (local secret manager)
+
+Opt-in per machine via `[machines.<hostname>.vaultlet] enabled = true` in
+`.chezmoidata.toml` (also overridable there: `installation_type`
+`native|docker|podman`, `version` `latest-stable|latest-prerelease|X.Y.Z`,
+`client_name`). Secrets such as the DoT client ID live in vaultlet
+(`local/dot-client-id`), never in this repo.
+
+`setup-00-vaultlet` only ever **installs onto a host with no trace of vaultlet**:
+a state file, a non-empty or unlistable `/etc/vaultlet`, `/var/lib/vaultlet` or
+`/opt/vaultlet`, a running socket, vaultlet systemd units, or `~/.config/vaultlet`
+all block it. Leftovers of a purged install (the `vaultletsvc` account/group/home
+and empty directories) are ignored, since `vlt apply` reuses them. A committed installation is left alone (with
+warnings if it looks unhealthy); anything half-installed or unreadable aborts
+without touching it. It never runs `--delete`, `--purge` or `--force`.
+
+A fresh install is non-interactive except for one `sudo` prompt, and requires a
+working `gh auth login`. It uses vaultlet's quickstart auto-unseal (reduced
+security -- see vaultlet's hardening notes). Afterwards you run `vlt unseal client`
+yourself with the passphrase from `~/.config/vaultlet/identity-passphrase`.
 
 ### SSH config generation
 

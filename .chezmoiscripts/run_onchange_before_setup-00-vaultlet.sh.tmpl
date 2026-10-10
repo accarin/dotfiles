@@ -1,0 +1,456 @@
+#!/bin/bash
+# run_onchange_before_setup-00-vaultlet.sh.tmpl
+set -euo pipefail
+
+{{- /* --------------------------------------------------------
+     Resolve per-machine overrides
+     -------------------------------------------------------- */ -}}
+
+{{- $enabled := .vaultlet.enabled }}
+{{- $installation_type := .vaultlet.installation_type }}
+{{- $version := .vaultlet.version }}
+{{- $client_name := .vaultlet.client_name }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "vaultlet" }}
+{{-     $machineVaultlet := index $machine "vaultlet" }}
+{{-     if hasKey $machineVaultlet "enabled" }}
+{{-       $enabled = index $machineVaultlet "enabled" }}
+{{-     end }}
+{{-     if hasKey $machineVaultlet "installation_type" }}
+{{-       $installation_type = index $machineVaultlet "installation_type" }}
+{{-     end }}
+{{-     if hasKey $machineVaultlet "version" }}
+{{-       $version = index $machineVaultlet "version" }}
+{{-     end }}
+{{-     if hasKey $machineVaultlet "client_name" }}
+{{-       $client_name = index $machineVaultlet "client_name" }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+{{- if not $enabled }}
+
+echo "==> vaultlet setup skipped (not enabled for {{ $hostname }})."
+
+{{- else }}
+
+{{- if not (has $installation_type (list "native" "docker" "podman")) }}
+{{-   fail (printf "vaultlet.installation_type must be native, docker or podman (got %q)" $installation_type) }}
+{{- end }}
+{{- if not (mustRegexMatch "^[A-Za-z0-9._-]+$" $client_name) }}
+{{-   fail (printf "vaultlet.client_name may only contain [A-Za-z0-9._-] (got %q)" $client_name) }}
+{{- end }}
+{{- $version_flag := "" }}
+{{- if eq $version "latest-stable" }}
+{{-   $version_flag = "--latest-stable" }}
+{{- else if eq $version "latest-prerelease" }}
+{{-   $version_flag = "--latest-prerelease" }}
+{{- else if mustRegexMatch "^v?[0-9]+\\.[0-9]+\\.[0-9]+$" $version }}
+{{-   $version_flag = printf "--version %s" (trimPrefix "v" $version) }}
+{{- else }}
+{{-   fail (printf "vaultlet.version must be latest-stable, latest-prerelease or MAJOR.MINOR.PATCH (got %q)" $version) }}
+{{- end }}
+
+CONFIGURED_TYPE="{{ $installation_type }}"
+CLIENT_NAME="{{ $client_name }}"
+VERSION_FLAG="{{ $version_flag }}"
+
+# Test hook: prefixes the filesystem paths inspected by the detection phase.
+ROOT="${VAULTLET_TEST_ROOT:-}"
+
+LIFECYCLE_DIR="/var/lib/vaultlet-lifecycle"
+STATE_FILE="$LIFECYCLE_DIR/state.json"
+AGENT_UNSEAL_FILE="/etc/vaultlet/unseal-passphrase"
+CLIENT_CONFIG_DIR="$HOME/.config/vaultlet"
+CLIENT_PASSPHRASE_FILE="$CLIENT_CONFIG_DIR/identity-passphrase"
+
+export PATH="$HOME/.local/bin:$PATH"
+
+err() { echo "==> $*" >&2; }
+
+# =============================================================================
+# Phase 1: detection -- read-only, no sudo, never prompts, never reads secrets.
+# Rule: an installation is only ever created when NO trace of vaultlet exists.
+# =============================================================================
+
+# TRACES block an installation: they hold, or may hold, vault data/keys or
+# describe a live/partial installation. RESIDUE is what `vlt apply --delete
+# --purge` deliberately leaves behind (service account, its group and home,
+# empty directories); `vlt apply` reuses it, so it never blocks.
+TRACES=()
+RESIDUE=()
+
+# absent | empty | nonempty | unknown (exists but cannot be listed by us)
+dir_state() {
+  local d="$ROOT$1"
+  if [ ! -e "$d" ] && [ ! -L "$d" ]; then
+    echo absent
+  elif [ ! -d "$d" ] || [ ! -r "$d" ] || [ ! -x "$d" ]; then
+    echo unknown
+  elif [ -n "$(find "$d" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+    echo nonempty
+  else
+    echo empty
+  fi
+}
+
+# Directories that may hold data: anything but absent/empty blocks (an
+# unlistable directory such as /etc/vaultlet (0750) or /var/lib/vaultlet (0700)
+# cannot be proven empty, so it blocks too).
+trace_dir() {
+  case "$(dir_state "$1")" in
+    absent) ;;
+    empty) RESIDUE+=("empty directory: $1") ;;
+    nonempty) TRACES+=("$2: $1 (not empty)") ;;
+    *) TRACES+=("$2: $1 (exists, contents cannot be inspected)") ;;
+  esac
+}
+
+trace_file() {
+  if [ -e "$ROOT$1" ] || [ -L "$ROOT$1" ]; then
+    TRACES+=("$2: $1")
+  fi
+}
+
+trace_dir "$LIFECYCLE_DIR" "installation state"
+trace_dir "/etc/vaultlet" "agent configuration and PKI"
+trace_dir "/var/lib/vaultlet" "agent database and snapshots"
+trace_dir "/opt/vaultlet" "native agent payload"
+trace_file "/run/vaultlet/vaultlet.sock" "running agent socket"
+trace_file "/etc/systemd/system/vaultlet-agent.service" "native systemd unit"
+trace_file "/etc/systemd/system/vaultlet-docker.service" "docker systemd unit"
+trace_file "/var/lib/vaultletsvc/.config/containers/systemd/vaultlet.container" "podman quadlet unit"
+for p in "$CLIENT_CONFIG_DIR/pki" "$CLIENT_CONFIG_DIR/vaultlet.yml"; do
+  if [ -e "$p" ] || [ -L "$p" ]; then
+    TRACES+=("existing client configuration/identity: $p")
+  fi
+done
+
+if command -v systemctl &>/dev/null; then
+  for unit in vaultlet-agent.service vaultlet-docker.service; do
+    if systemctl cat "$unit" &>/dev/null; then
+      TRACES+=("systemd unit known to systemd: $unit")
+    fi
+  done
+fi
+
+[ -e "$ROOT/run/vaultlet" ] && RESIDUE+=("runtime directory: /run/vaultlet")
+[ -e "$ROOT/var/lib/vaultletsvc" ] && RESIDUE+=("service account home: /var/lib/vaultletsvc")
+if command -v getent &>/dev/null; then
+  getent passwd vaultletsvc &>/dev/null && RESIDUE+=("user account: vaultletsvc (reused by 'vlt apply')")
+  getent group vaultletsvc &>/dev/null && RESIDUE+=("group: vaultletsvc (reused by 'vlt apply')")
+fi
+
+# A bare CLI binary is harmless: `vlt apply vaultlet` converges it itself.
+HAVE_VLT=0
+if command -v vlt &>/dev/null; then
+  HAVE_VLT=1
+fi
+
+STATE_COMMITTED=0
+STATE_TYPE=""
+STATE_VERSION=""
+if [ -r "$ROOT$STATE_FILE" ]; then
+  if grep -Eq '"transactionStatus"[[:space:]]*:[[:space:]]*"committed"' "$ROOT$STATE_FILE"; then
+    STATE_COMMITTED=1
+    STATE_TYPE=$(sed -n 's/.*"installationType"[[:space:]]*:[[:space:]]*"\([a-z]*\)".*/\1/p' "$ROOT$STATE_FILE" | head -n1)
+    STATE_VERSION=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$ROOT$STATE_FILE" | head -n1)
+  fi
+fi
+
+# 0 = running, 1 = not running, 2 = cannot be determined without privileges
+agent_running() {
+  case "$STATE_TYPE" in
+    native) systemctl is-active --quiet vaultlet-agent.service && return 0 || return 1 ;;
+    docker) systemctl is-active --quiet vaultlet-docker.service && return 0 || return 1 ;;
+  esac
+  # podman: the unit lives in vaultletsvc's own user manager, so look at the socket.
+  if [ -S /run/vaultlet/vaultlet.sock ]; then
+    return 0
+  fi
+  if [ -x /run/vaultlet ]; then
+    return 1
+  fi
+  return 2
+}
+
+if [ "$STATE_COMMITTED" = 1 ]; then
+  echo "==> vaultlet is already installed (${STATE_TYPE:-unknown type}, version ${STATE_VERSION:-unknown}); not touching it."
+
+  if [ -n "$STATE_TYPE" ] && [ "$STATE_TYPE" != "$CONFIGURED_TYPE" ]; then
+    err "WARNING: installed type '$STATE_TYPE' differs from the configured vaultlet.installation_type '$CONFIGURED_TYPE'."
+    err "WARNING: The type cannot be changed without a manual 'vlt apply vaultlet --delete --purge'; ignoring the configured value."
+  fi
+
+  rc=0
+  agent_running || rc=$?
+  case "$rc" in
+    0) echo "==> vaultlet agent is running." ;;
+    1) err "WARNING: the vaultlet agent does not appear to be running. Inspect it with 'vlt info vaultlet' and 'systemctl status'." ;;
+    *) err "NOTE: cannot determine whether the vaultlet agent is running (no access to /run/vaultlet)." ;;
+  esac
+
+  if [ "$HAVE_VLT" = 1 ]; then
+    # Local, read-only diagnostics. No unseal; stdin is closed so nothing can prompt.
+    if diag=$(vlt info vaultlet --json </dev/null 2>&1); then
+      if printf '%s' "$diag" | grep -Eo '"status":"[a-z]+"' | grep -qv '"status":"pass"'; then
+        err "WARNING: 'vlt info vaultlet' reports problems:"
+        vlt info vaultlet --simple </dev/null >&2 || true
+      fi
+    else
+      err "WARNING: 'vlt info vaultlet' failed; run it manually to inspect the installation."
+    fi
+  else
+    err "WARNING: 'vlt' is not in PATH for $USER. Run 'vlt apply cli' (or the install.sh from the vaultlet repo) to restore your CLI."
+  fi
+  exit 0
+fi
+
+if [ "${#TRACES[@]}" -gt 0 ]; then
+  err "vaultlet is enabled for {{ $hostname }}, but an existing, uncommitted or unreadable vaultlet"
+  err "installation was found. Refusing to install over it. Nothing has been changed."
+  err ""
+  err "Blocking traces found:"
+  for t in "${TRACES[@]}"; do
+    err "  - $t"
+  done
+  if [ -r "$ROOT$STATE_FILE" ]; then
+    err "  - state file does not report a committed transaction: $STATE_FILE"
+  fi
+  err ""
+  err "Inspect with 'vlt info vaultlet' and the vaultlet README (Upgrade, repair, and removal)."
+  err "Remove the traces above only if you are sure they hold no data you need"
+  err "(e.g. 'vlt apply vaultlet --delete --purge' destroys the vault, its keys and your client config)."
+  err "chezmoi will never purge or reinstall an existing vaultlet."
+  exit 1
+fi
+
+if [ "${#RESIDUE[@]}" -gt 0 ]; then
+  echo "==> Ignoring leftovers of a previous (purged) vaultlet installation:"
+  for r in "${RESIDUE[@]}"; do
+    echo "==>   - $r"
+  done
+fi
+
+if [ "${VAULTLET_DETECT_ONLY:-0}" = 1 ]; then
+  echo "==> vaultlet: no trace found (fresh host); detection only, stopping."
+  exit 0
+fi
+
+# =============================================================================
+# Phase 2: prechecks (fresh host only) -- collect everything missing, abort once.
+# =============================================================================
+
+echo "==> vaultlet not found on {{ $hostname }}; installing ($CONFIGURED_TYPE, $VERSION_FLAG)..."
+
+MISSING=()
+
+[ "$(uname -s)" = "Linux" ] && [ "$(uname -m)" = "x86_64" ] \
+  || MISSING+=("vaultlet requires Linux x86-64 (found $(uname -s) $(uname -m))")
+{ command -v systemctl &>/dev/null && [ -d /run/systemd/system ]; } \
+  || MISSING+=("systemd is required (systemctl missing or systemd is not PID 1)")
+
+for cmd in sudo gh openssl mktemp grep sed; do
+  command -v "$cmd" &>/dev/null || MISSING+=("'$cmd' is not installed")
+done
+if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+  MISSING+=("'curl' or 'wget' is required by the vaultlet installer")
+fi
+
+if command -v gh &>/dev/null; then
+  if ! GH_PROMPT_DISABLED=1 gh api repos/accarin/vaultlet --jq .full_name </dev/null &>/dev/null; then
+    MISSING+=("GitHub CLI is not logged in or has no access to accarin/vaultlet (run 'gh auth login', or export GH_TOKEN)")
+  fi
+fi
+
+# Container variants need a privileged daemon check, so authenticate sudo once now.
+HAVE_SUDO=0
+if command -v sudo &>/dev/null; then
+  echo "==> sudo authentication is required for the vaultlet installation."
+  if sudo -v; then
+    HAVE_SUDO=1
+  else
+    MISSING+=("sudo authentication failed")
+  fi
+fi
+
+case "$CONFIGURED_TYPE" in
+  native)
+    if command -v openssl &>/dev/null; then
+      ossl=$(openssl version 2>/dev/null || true)
+      if [[ "$ossl" =~ ^OpenSSL\ ([0-9]+)\.([0-9]+) ]]; then
+        if (( BASH_REMATCH[1] < 3 || (BASH_REMATCH[1] == 3 && BASH_REMATCH[2] < 5) )); then
+          MISSING+=("native install needs OpenSSL 3.5 or newer (found: $ossl); use installation_type = \"docker\" or \"podman\"")
+        fi
+      else
+        MISSING+=("native install needs OpenSSL 3.5 or newer (found: ${ossl:-unknown}); use installation_type = \"docker\" or \"podman\"")
+      fi
+    fi
+    ;;
+  docker)
+    if ! command -v docker &>/dev/null; then
+      MISSING+=("'docker' is not installed")
+    elif [ "$HAVE_SUDO" = 1 ]; then
+      sudo docker info &>/dev/null \
+        || MISSING+=("the Docker daemon is not running or not reachable (try 'sudo systemctl start docker')")
+      sudo docker compose version &>/dev/null \
+        || MISSING+=("Docker Compose v2 is required ('docker compose version' failed)")
+    fi
+    ;;
+  podman)
+    if ! command -v podman &>/dev/null; then
+      MISSING+=("'podman' is not installed")
+    else
+      pv=$(podman --version 2>/dev/null | sed -n 's/.* \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p' | head -n1)
+      read -r pmaj pmin <<<"${pv:-0 0}"
+      if (( pmaj < 4 || (pmaj == 4 && pmin < 4) )); then
+        MISSING+=("podman 4.4 or newer is required (found: $(podman --version 2>/dev/null || echo unknown))")
+      fi
+    fi
+    ;;
+esac
+
+if [ "${#MISSING[@]}" -gt 0 ]; then
+  err "vaultlet is enabled for {{ $hostname }} but the prerequisites are not met. Nothing has been changed."
+  err ""
+  for m in "${MISSING[@]}"; do
+    err "  - $m"
+  done
+  exit 1
+fi
+
+# =============================================================================
+# Phase 3: install, following vaultlet's QUICKSTART.md. Non-interactive apart
+# from the single sudo prompt above. Nothing is cleaned up automatically on
+# failure: purging a half-installed vault is a manual decision.
+# =============================================================================
+
+TMP_CA=$(mktemp)
+TMP_YML=""
+trap 'rm -f "$TMP_CA" "$TMP_YML"' EXIT
+
+fail_partial() {
+  err "$1"
+  err "The installation may be incomplete. Nothing was cleaned up or purged."
+  err "See vaultlet's QUICKSTART.md ('Something went wrong') and inspect with 'vlt info vaultlet'."
+  err "Re-running 'chezmoi apply' will refuse to continue on top of a partial installation."
+  exit 1
+}
+
+if ! command -v vlt &>/dev/null; then
+  echo "==> Installing the vaultlet CLI..."
+  # shellcheck disable=SC2086
+  GH_PROMPT_DISABLED=1 gh api -H 'Accept: application/vnd.github.raw+json' \
+    repos/accarin/vaultlet/contents/install.sh </dev/null | sh -s -- $VERSION_FLAG \
+    || fail_partial "Installing the vaultlet CLI failed."
+  hash -r
+  command -v vlt &>/dev/null || fail_partial "vlt is still not in PATH after installing the CLI."
+fi
+
+echo "==> Installing the vaultlet agent ($CONFIGURED_TYPE) with auto-unseal..."
+# shellcheck disable=SC2086
+vlt apply vaultlet --non-interactive \
+  --installation-type "$CONFIGURED_TYPE" \
+  --auto-unseal-file "$AGENT_UNSEAL_FILE" \
+  $VERSION_FLAG \
+  || fail_partial "'vlt apply vaultlet' failed."
+
+# `vlt apply` adds this user to the vaultletsvc group (it owns the agent socket),
+# but this process keeps the group list from login. A same-user sudo re-reads
+# /etc/group, so the new membership is active without logging out again.
+as_vaultletsvc_group() {
+  if id -nG | tr ' ' '\n' | grep -qx vaultletsvc; then
+    "$@"
+  else
+    sudo -u "$USER" env "PATH=$PATH" "HOME=$HOME" "$@"
+  fi
+}
+
+if ! getent group vaultletsvc | cut -d: -f4 | tr ',' '\n' | grep -qx "$USER"; then
+  fail_partial "'vlt apply' did not add $USER to the vaultletsvc group."
+fi
+
+fetch_token() {
+  case "$CONFIGURED_TYPE" in
+    native) sudo journalctl -u vaultlet-agent --no-pager 2>/dev/null ;;
+    docker) sudo docker logs vaultlet-agent 2>&1 ;;
+    podman) sudo -u vaultletsvc env -C / XDG_RUNTIME_DIR=/run/user/10001 podman logs vaultlet-agent 2>&1 ;;
+  esac | grep -o 'vlt init client [A-Z2-7]*' | tail -n1 || true
+}
+
+echo "==> Waiting for the agent's bootstrap token..."
+TOKEN=""
+for _ in $(seq 1 30); do
+  line=$(fetch_token)
+  TOKEN="${line#vlt init client }"
+  if [[ "$TOKEN" =~ ^[A-Z2-7]+$ ]]; then
+    break
+  fi
+  TOKEN=""
+  sleep 2
+done
+[ -n "$TOKEN" ] || fail_partial "No bootstrap token found in the agent log (it is only minted while no client is enrolled)."
+
+sudo cat /etc/vaultlet/pki/vlt-agent-ca.crt > "$TMP_CA" \
+  || fail_partial "Could not read the agent CA certificate."
+
+install -d -m 700 "$CLIENT_CONFIG_DIR"
+
+as_vaultletsvc_group test -w /run/vaultlet/vaultlet.sock \
+  || fail_partial "Cannot access the agent socket /run/vaultlet/vaultlet.sock as $USER (missing vaultletsvc group access, or the agent is not running)."
+
+# --no-cache: the key is unlocked and cached later by you, in your own session.
+echo "==> Enrolling client '$CLIENT_NAME'..."
+as_vaultletsvc_group vlt init client "$TOKEN" --name "$CLIENT_NAME" --no-cache \
+    --agent-ca "$TMP_CA" --passphrase-file "$CLIENT_PASSPHRASE_FILE" \
+  || fail_partial "'vlt init client' failed."
+
+# 'vlt init client' records where it stored the identity; reuse those paths.
+yml_value() {
+  sed -n "s/^[[:space:]]*$1:[[:space:]]*//p" "$CLIENT_CONFIG_DIR/vaultlet.yml" | head -n1
+}
+CLIENT_CERT=$(yml_value certificate)
+CLIENT_KEY=$(yml_value private_key)
+CLIENT_CERT="${CLIENT_CERT:-$CLIENT_CONFIG_DIR/pki/$CLIENT_NAME.crt}"
+CLIENT_KEY="${CLIENT_KEY:-$CLIENT_CONFIG_DIR/pki/$CLIENT_NAME.key}"
+for f in "$CLIENT_CERT" "$CLIENT_KEY"; do
+  [ -f "$f" ] || fail_partial "Expected client file '$f' was not created by 'vlt init client'."
+done
+
+TMP_YML=$(mktemp "$CLIENT_CONFIG_DIR/.vaultlet.yml.XXXXXX")
+cat > "$TMP_YML" <<EOF
+socket: /run/vaultlet/vaultlet.sock
+agent_ca: $CLIENT_CONFIG_DIR/pki/vlt-agent-ca.crt
+bootstrap_certificate: /run/vaultlet/vlt-agent-bootstrap.crt
+identity:
+  certificate: $CLIENT_CERT
+  private_key: $CLIENT_KEY
+  passphrase_file: null
+  cache: keyring
+output: full
+timeout: 5000
+log_level: warn
+namespace: local
+EOF
+chmod 600 "$TMP_YML"
+mv -f "$TMP_YML" "$CLIENT_CONFIG_DIR/vaultlet.yml"
+TMP_YML=""
+
+echo "==> vaultlet installed. Manual step required (it needs your input):"
+echo "==>"
+echo "==> 1. Your client key passphrase was written to:"
+echo "==>      $CLIENT_PASSPHRASE_FILE"
+echo "==>    The agent unseal passphrase is in:"
+echo "==>      $AGENT_UNSEAL_FILE   (read it with sudo)"
+echo "==>    This quickstart setup keeps both in plaintext. Copy them to your password"
+echo "==>    manager and read vaultlet's README ('Hardening the quickstart setup')."
+echo "==> 2. Unlock your client (activates the group in a fresh shell first):"
+echo "==>      newgrp vaultletsvc   # or log out and back in"
+echo "==>      vlt unseal client    # enter the passphrase; it is then cached in the kernel keyring"
+echo "==>      vlt info             # should print: sealed false"
+echo "==> Other chezmoi scripts that read secrets via 'vlt' will prompt for the same passphrase."
+
+{{- end }}
