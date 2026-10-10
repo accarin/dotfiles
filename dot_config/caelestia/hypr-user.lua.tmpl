@@ -18,6 +18,10 @@ hl.config({
     },
 })
 
+-- Read by GE-Proton / proton-cachyos only; Valve's Proton ignores both.
+hl.env("PROTON_ENABLE_HDR", "1")
+hl.env("DXVK_HDR", "1")
+
 -- HDR for the LG UltraWide (deep-thought only, identified by EDID desc so
 -- it survives port changes) -- 10-bit + "auto" color-management preset
 -- (sRGB at 8bpc, wide-gamut BT.2020 at 10bpc) keeps the normal SDR desktop
