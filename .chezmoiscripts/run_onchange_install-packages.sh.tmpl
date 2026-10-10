@@ -140,7 +140,9 @@ PACMAN_PKGS+=(
 )
 
 AUR_PKGS+=(
-    proton-ge-custom
+    # Explicit -bin: proton-ge-custom is only a virtual Provides of both
+    # proton-ge-custom-bin and proton-ge-bin (which conflict), so paru prompts.
+    aur/proton-ge-custom-bin
 )
 {{-   end }}
 

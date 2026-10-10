@@ -273,6 +273,9 @@ enabled = true
 [machines.hitchhiker.caelestia]
 enabled = true
 
+[machines.deep-thought.silverhand]
+enabled = true
+
 # Built-in laptop panel: Hyprland defaults to scale 1, far too small on a
 # high-DPI screen. Rendered into hypr-user.lua.tmpl; find the output name
 # with `hyprctl monitors`.
