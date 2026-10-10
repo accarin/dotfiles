@@ -26,6 +26,10 @@ enabled           = true
 [machines.hitchhiker.vaultlet]
 enabled           = true
 
+# Per-machine overrides, keyed by hostname (any of the keys above).
+[machines.silverhand.vaultlet]
+enabled           = true
+
 # Global default — u2f disabled unless explicitly enabled per machine
 [u2f]
 enabled = false
@@ -231,8 +235,8 @@ enabled   = true
 [machines.hitchhiker.dot]
 enabled   = true
 
-# [machines.silverhand.dot]
-# enabled   = true
+[machines.silverhand.dot]
+enabled   = true
 
 # [machines.pc46379.dot]
 # enabled   = true
