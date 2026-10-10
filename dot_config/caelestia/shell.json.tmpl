@@ -17,11 +17,31 @@
   appearance.transparency.enabled (plugin/src/Caelestia/Config/
   appearanceconfig.hpp, default false) turns on translucent shell surfaces
   everywhere -- applied to every machine type, not just workstation.
+
+  session.commands.logout (plugin/src/Caelestia/Config/sessionconfig.hpp):
+  the default "logout" is aliased to logind's Session.Terminate, which
+  SIGTERMs every process in the session scope *including sddm-helper*. SDDM
+  0.21 then sees helper exit code 1 (== HELPER_AUTH_ERROR), deliberately does
+  not restart its greeter, and the screen stays black with no way to pick
+  another session. Exiting Hyprland itself instead lets start-hyprland and
+  sddm-helper exit 0 so SDDM brings the greeter back. Hyprland >= 0.55 uses a
+  Lua config, so the legacy `hyprctl dispatch exit` is a syntax error; the
+  dispatcher is `hl.dsp.exit()`. hyprshutdown (if installed) closes apps
+  gracefully first, same as Hyprland's own stock config.
 */ -}}
 {
   "appearance": {
     "transparency": {
       "enabled": true
+    }
+  },
+  "session": {
+    "commands": {
+      "logout": [
+        "sh",
+        "-c",
+        "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"
+      ]
     }
   }
   {{- if eq .machine_type "workstation" }},
