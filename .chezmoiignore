@@ -15,6 +15,25 @@ README.md
 .vscode/argv.json
 {{- end }}
 
+# --- Caelestia (Hyprland shell/rice) configs ---
+# Only deploy the chezmoi-managed caelestia override files (shell.json,
+# cli.json, hypr-vars.lua, hypr-user.lua) on machines where caelestia is
+# actually enabled; see .chezmoidata.toml's [caelestia] table.
+{{- $caelestiaEnabled := .caelestia.enabled }}
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "caelestia" }}
+{{-     $machineCaelestia := index $machine "caelestia" }}
+{{-     if hasKey $machineCaelestia "enabled" }}
+{{-       $caelestiaEnabled = index $machineCaelestia "enabled" }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- if or (eq .machine_type "server") (not $caelestiaEnabled) }}
+.config/caelestia
+{{- end }}
+
 # --- Gaming-only configs ---
 # Ignore on everything except gaming
 {{- if ne .machine_type "gaming" }}

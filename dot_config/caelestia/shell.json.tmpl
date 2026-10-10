@@ -1,0 +1,41 @@
+{{- /*
+  ~/.config/caelestia/shell.json — chezmoi-managed.
+  Caelestia's shell reads this for wallpaper path, bar options, per-feature
+  toggles, appearance scale, etc. Not created by caelestia itself (only the
+  keys you set here override its defaults). Full list of options:
+  https://github.com/caelestia-dots/shell#configuring
+
+  Idle/lock/timer behaviour (general.idle in the upstream config, see
+  plugin/src/Caelestia/Config/generalconfig.hpp and modules/IdleMonitors.qml
+  in caelestia-dots/shell): default is 3 timeouts (180s lock, 300s dpms off,
+  600s suspendThenHibernate) + lockBeforeSleep=true. workstation machines run
+  long AI-agent jobs and must never hibernate/suspend or auto-lock on their
+  own -- only the screen should blank after being idle, the user decides
+  when the system actually sleeps/shuts down. All other machine types keep
+  caelestia's defaults for idle/lock behaviour.
+
+  appearance.transparency.enabled (plugin/src/Caelestia/Config/
+  appearanceconfig.hpp, default false) turns on translucent shell surfaces
+  everywhere -- applied to every machine type, not just workstation.
+*/ -}}
+{
+  "appearance": {
+    "transparency": {
+      "enabled": true
+    }
+  }
+  {{- if eq .machine_type "workstation" }},
+  "general": {
+    "idle": {
+      "lockBeforeSleep": false,
+      "timeouts": [
+        {
+          "timeout": 300,
+          "idleAction": "dpms off",
+          "returnAction": "dpms on"
+        }
+      ]
+    }
+  }
+  {{- end }}
+}

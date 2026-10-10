@@ -1,6 +1,6 @@
 # Niri Configuration
 
-Personal niri config built on top of [noctalia-shell](https://docs.noctalia.dev/).
+Personal niri config built on top of [Noctalia](https://docs.noctalia.dev/) (v5, native — not the archived Quickshell-based v4/noctalia-shell).
 Config is split into `cfg/` partials and included from `config.kdl`.
 
 ---

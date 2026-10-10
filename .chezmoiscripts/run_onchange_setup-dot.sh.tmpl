@@ -15,7 +15,6 @@ set -euo pipefail
      -------------------------------------------------------- */ -}}
 
 {{- $dot_enabled := .dot.enabled }}
-{{- $client_id := "" }}
 {{- $interface_match := "enp*" }}
 
 {{- $hostname := .chezmoi.hostname }}
@@ -26,9 +25,6 @@ set -euo pipefail
 {{-     $machineDot := index $machine "dot" }}
 {{-     if hasKey $machineDot "enabled" }}
 {{-       $dot_enabled = index $machineDot "enabled" }}
-{{-     end }}
-{{-     if hasKey $machineDot "client_id" }}
-{{-       $client_id = index $machineDot "client_id" }}
 {{-     end }}
 {{-     if hasKey $machineDot "interface_match" }}
 {{-       $interface_match = index $machineDot "interface_match" }}
@@ -41,25 +37,57 @@ set -euo pipefail
 
 echo "==> DNS-over-TLS setup skipped (not enabled for {{ $hostname }})."
 
-{{- else if eq $client_id "" }}
-
-echo "==> DNS-over-TLS is enabled for {{ $hostname }} but no clientId is configured." >&2
-echo "==> A per-machine clientId is required so AdGuard can identify/whitelist" >&2
-echo "==> this machine's DNS-over-TLS queries. Nothing has been deployed." >&2
-echo "==>" >&2
-echo "==> Suggested clientId (24 random lowercase letters/digits, from /dev/urandom):" >&2
-echo "==>   $(tr -dc 'a-z0-9' < /dev/urandom | head -c24)" >&2
-echo "==>" >&2
-echo "==> 1. Register this clientId in the AdGuard dashboard and add it to the" >&2
-echo "==>    whitelist: {{ $dashboard_url }}" >&2
-echo "==> 2. Add it to .chezmoidata.toml:" >&2
-echo "==>      [machines.{{ $hostname }}.dot]" >&2
-echo "==>      enabled   = true" >&2
-echo "==>      client_id = \"<clientId-from-above>\"" >&2
-echo "==> 3. Re-run 'chezmoi apply'." >&2
-exit 1
-
 {{- else }}
+
+# The per-machine clientId is a secret and lives in the vaultlet secret manager
+# (namespace "local", name "dot-client-id"), never in .chezmoidata.toml.
+VLT_SECRET="local/dot-client-id"
+
+if ! command -v vlt &>/dev/null; then
+  echo "==> DNS-over-TLS is enabled for {{ $hostname }} but 'vlt' (vaultlet) was not found in PATH." >&2
+  echo "==> The clientId is read from the secret '$VLT_SECRET'. Nothing has been deployed." >&2
+  exit 1
+fi
+
+# 'vlt info' needs the client key, so this triggers the interactive unseal
+# prompt up front (stderr stays visible) and fails if it cannot be unsealed.
+if ! vlt info >/dev/null; then
+  echo "==> Could not unseal vlt. Nothing has been deployed." >&2
+  exit 1
+fi
+
+VLT_ERR=$(mktemp)
+trap 'rm -f "$VLT_ERR"' EXIT
+
+if CLIENT_ID=$(vlt get secret "$VLT_SECRET" --simple 2>"$VLT_ERR"); then
+  :
+elif grep -q "not found" "$VLT_ERR"; then
+  echo "==> Secret '$VLT_SECRET' does not exist yet." >&2
+  echo "==> A per-machine clientId (24 random lowercase letters/digits [a-z0-9]) is" >&2
+  echo "==> required so AdGuard can identify/whitelist this machine's DNS-over-TLS" >&2
+  echo "==> queries. Register it in the dashboard: {{ $dashboard_url }}" >&2
+  echo "==> Suggested clientId: $(tr -dc 'a-z0-9' < /dev/urandom | head -c24)" >&2
+  if [ ! -r /dev/tty ]; then
+    echo "==> No terminal available to prompt for the clientId. Nothing has been deployed." >&2
+    exit 1
+  fi
+  read -rsp "==> Enter clientId for {{ $hostname }}: " CLIENT_ID </dev/tty
+  echo >&2
+  if ! [[ "$CLIENT_ID" =~ ^[a-z0-9]+$ ]]; then
+    echo "==> Invalid clientId (only [a-z0-9] allowed). Nothing has been deployed." >&2
+    exit 1
+  fi
+  printf '%s' "$CLIENT_ID" | vlt put secret "$VLT_SECRET" - --profile simple >/dev/null
+else
+  cat "$VLT_ERR" >&2
+  echo "==> Failed to read secret '$VLT_SECRET'. Nothing has been deployed." >&2
+  exit 1
+fi
+
+if ! [[ "$CLIENT_ID" =~ ^[a-z0-9]+$ ]]; then
+  echo "==> Secret '$VLT_SECRET' is empty or not a valid clientId ([a-z0-9]+). Nothing has been deployed." >&2
+  exit 1
+fi
 
 echo "==> Deploying /etc/systemd/resolved.conf.d/dot.conf..."
 DOT_CONF_PATH="/etc/systemd/resolved.conf.d/dot.conf"
@@ -68,13 +96,13 @@ if [ -f "$DOT_CONF_PATH" ]; then
   DOT_CONF_OLD_HASH=$(sha256sum "$DOT_CONF_PATH" | awk '{print $1}')
 fi
 
-sudo install -Dm644 /dev/stdin "$DOT_CONF_PATH" << 'EOF'
-[Resolve]
-DNS={{ $dns_server_ip }}#{{ $client_id }}.{{ $dns_suffix }} {{ $dns_fallback_ip_1 }}#{{ $dns_fallback_1 }} {{ $dns_fallback_ip_2 }}#{{ $dns_fallback_2 }}
-DNSOverTLS=yes
-Domains=~.
-Cache=yes
-EOF
+printf '%s\n' \
+  '[Resolve]' \
+  "DNS={{ $dns_server_ip }}#${CLIENT_ID}.{{ $dns_suffix }} {{ $dns_fallback_ip_1 }}#{{ $dns_fallback_1 }} {{ $dns_fallback_ip_2 }}#{{ $dns_fallback_2 }}" \
+  'DNSOverTLS=yes' \
+  'Domains=~.' \
+  'Cache=yes' \
+  | sudo install -Dm644 /dev/stdin "$DOT_CONF_PATH"
 
 DOT_CONF_NEW_HASH=$(sha256sum "$DOT_CONF_PATH" | awk '{print $1}')
 

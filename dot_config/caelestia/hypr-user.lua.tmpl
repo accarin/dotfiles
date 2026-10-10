@@ -1,0 +1,120 @@
+{{- /*
+  ~/.config/caelestia/hypr-user.lua — chezmoi-managed.
+  Caelestia's documented hook for your own extra Hyprland config (monitor
+  layout, custom binds, etc.). Never overwritten by `caelestia update`
+  (unlike everything under ~/.config/hypr itself, which is fully
+  caelestia-managed -- see caelestia-implementation-plan.md §3.3).
+  Confirmed live on deep-thought: hyprland.lua does a plain `require
+  ("hypr-user")` (return value ignored, loaded last) -- so this file must
+  call hl.config() itself to add/override config, same pattern as
+  caelestia's own hyprland/input.lua.
+*/ -}}
+hl.config({
+    input = {
+        -- German (Austria) QWERTZ layout, dead keys disabled so accent/
+        -- special characters (", ~, ^, ...) type directly in one keypress.
+        kb_layout  = "at",
+        kb_variant = "nodeadkeys",
+    },
+})
+
+-- HDR for the LG UltraWide (deep-thought only, identified by EDID desc so
+-- it survives port changes) -- 10-bit + "auto" color-management preset
+-- (sRGB at 8bpc, wide-gamut BT.2020 at 10bpc) keeps the normal SDR desktop
+-- looking correct. render.cm_auto_hdr defaults to on (1) in Hyprland
+-- 0.56, so fullscreen HDR content (games/video) auto-switches to real HDR
+-- PQ without needing a permanent `cm = "hdr"` (which would leave SDR
+-- content over-bright/oversaturated all the time).
+hl.monitor({
+    output   = "desc:LG Electronics LG ULTRAWIDE 602NTQDGH692",
+    mode     = "preferred",
+    position = "auto",
+    scale    = 1,
+    bitdepth = 10,
+    cm       = "auto",
+})
+
+-- Workaround for a known-experimental cm_auto_hdr bug: leaving HDR
+-- fullscreen (e.g. a YouTube video in a browser) sometimes reverts
+-- Hyprland's own tracked state to "wide" (confirmed via `hyprctl monitors`)
+-- but the monitor's own HDR metadata/infoframe stays latched, leaving the
+-- panel stuck over-bright/oversaturated. A DPMS off->on cycle (tried
+-- first) only dims the panel without fixing colours -- confirmed the
+-- reliable fix is a genuine bitdepth/cm mode change (forces a full
+-- renegotiation with the panel, unlike DPMS blank/unblank): drop to
+-- 8-bit/srgb then back to 10-bit/auto. `hyprctl eval 'hl.monitor({...})'`
+-- (NOT `hyprctl keyword`, which errors "can't work with non-legacy
+-- parsers" on this Lua-config Hyprland) applies a monitor rule at runtime
+-- without a full config reload -- confirmed working both directions.
+-- NOTE: keysym name "asciicircum" (X11/xkbcommon's canonical name for "^"),
+-- not the literal "^" character -- bind key names are keysym names.
+hl.bind("SUPER + asciicircum", hl.dsp.exec_cmd([[hyprctl eval 'hl.monitor({output="desc:LG Electronics LG ULTRAWIDE 602NTQDGH692", mode="preferred", position="auto", scale=1, bitdepth=8, cm="srgb"})' && sleep 0.5 && hyprctl eval 'hl.monitor({output="desc:LG Electronics LG ULTRAWIDE 602NTQDGH692", mode="preferred", position="auto", scale=1, bitdepth=10, cm="auto"})']]))
+
+-- ============================================================================
+-- Reproduce niri's keybinds (dot_config/niri/cfg/keybinds.kdl.tmpl) on
+-- Hyprland -- niri is the leading/authoritative config here. Bindings that
+-- already matched a caelestia default (same key, same or equivalent action)
+-- needed no change. Every genuine conflict (same key, different action) was
+-- resolved by moving caelestia's own default to a new key via hypr-vars.lua
+-- (see the comments there) so niri's key could carry niri's meaning.
+-- ============================================================================
+local fn = require("utils.functions")
+
+-- Vim-style focus aliases (niri Mod+H/J/K/L, alongside the arrow keys
+-- caelestia already binds via the same hl.dsp.focus dispatcher).
+hl.bind("SUPER + h", hl.dsp.focus({ direction = "left" }))
+hl.bind("SUPER + l", hl.dsp.focus({ direction = "right" }))
+hl.bind("SUPER + k", hl.dsp.focus({ direction = "up" }))
+hl.bind("SUPER + j", hl.dsp.focus({ direction = "down" }))
+
+-- niri's Mod+Ctrl+arrows/HJKL ("move column/window") -- dwindle has no
+-- separate "reorder column" concept like niri's scrolling layout, so this
+-- is the same hl.dsp.window.move already used for SUPER+SHIFT+arrows.
+for _, dir in ipairs({ "left", "right", "up", "down" }) do
+    hl.bind("CTRL + SUPER + " .. dir, hl.dsp.window.move({ direction = dir }))
+end
+hl.bind("CTRL + SUPER + h", hl.dsp.window.move({ direction = "left" }))
+hl.bind("CTRL + SUPER + l", hl.dsp.window.move({ direction = "right" }))
+hl.bind("CTRL + SUPER + k", hl.dsp.window.move({ direction = "up" }))
+hl.bind("CTRL + SUPER + j", hl.dsp.window.move({ direction = "down" }))
+
+-- niri's Mod+Ctrl+1-9 ("move column to workspace N") -- freed from
+-- kbGoToWsGroup in hypr-vars.lua; reuses the same fn.wsaction("move", ...)
+-- that kbMoveWinToWs (SUPER+ALT+N) already uses.
+for i = 1, 10 do
+    local key = i % 10 -- 10 maps to key 0
+    hl.bind("CTRL + SUPER + " .. key, fn.wsaction("move", "", i))
+end
+
+-- niri's Mod+F ("switch-preset-column-width") -- no dwindle equivalent to
+-- cycling scrolling-layout column-width presets; pseudotile is the closest
+-- available "alternate sizing mode" toggle, not a true 1:1 match.
+hl.bind("SUPER + f", hl.dsp.window.pseudo())
+
+-- niri's Mod+Shift+P ("power-off-monitors").
+hl.bind("SUPER + SHIFT + P", hl.dsp.dpms({ action = "off" }))
+
+-- niri's Ctrl+Shift+1/2 (region/fullscreen screenshot) -> caelestia's own
+-- screenshot command. Ctrl+Shift+3 (screenshot-window) has no equivalent
+-- in caelestia's screenshot CLI (region/freeze only) and isn't reproduced.
+hl.bind("CTRL + SHIFT + 1", hl.dsp.exec_cmd("caelestia screenshot -r"))
+hl.bind("CTRL + SHIFT + 2", hl.dsp.exec_cmd("caelestia screenshot"))
+
+-- Not reproduced, and why:
+-- * Mod+F1 (show-hotkey-overlay), Mod+Escape (toggle-keyboard-shortcuts-
+--   inhibit), Mod+O (toggle-overview): niri-specific features with no
+--   Hyprland/caelestia equivalent.
+-- * Mod+Home/End, Mod+Ctrl+Home/End (column first/last): scrolling-layout-
+--   specific column ordering; dwindle has no equivalent concept.
+-- * Mod+Shift+arrows (move-column-to-monitor), Mod+Shift+H/J/K/L and
+--   Mod+Shift+Ctrl+arrows (focus-monitor-*): this machine has one monitor,
+--   so these would be no-ops -- add if a second monitor is ever attached.
+--   (SUPER+SHIFT+H/J/K/L are deliberately left unbound to reserve them.)
+-- * Mod+WheelScroll* variants: niri-specific scrolling-layout convenience
+--   gestures, not reproduced.
+-- * Mod+Tab (focus-workspace-previous): no clean Hyprland/caelestia
+--   equivalent found; skipped rather than guessing at one.
+-- * Ctrl+Alt+Delete: niri hard-quits (logs out) on this key; kept
+--   caelestia's existing (safer, confirmable) session-menu behaviour
+--   instead of wiring a direct hard-exit -- niri's own separate session
+--   menu key (Mod+Shift+Q) is reproduced via kbSession in hypr-vars.lua.

@@ -45,18 +45,38 @@ alias vi   nvim
 alias vim  nvim
 alias ..   'cd ..'
 alias ...  'cd ../..'
-alias gs   'git status'
-alias gp   'git push'
-alias gl   'git pull'
 
 # --- Modern tool replacements (personal desktop shell — fine to override
 #     core tools here, unlike the shared-friendly bash setup on servers) ---
-alias ls   eza
-alias ll   'eza -lah'
-alias la   'eza -A'
+alias ls   'eza --icons --group-directories-first -1'
+alias ll   'eza -lah --icons --group-directories-first'
+alias la   'eza -A --icons --group-directories-first'
 alias cat  bat
 alias grep rg
 alias find fd
+
+# --- Git abbreviations (replicates caelestia's fish component, which we
+#     disable via `caelestia install --disable-components fish,starship,...` to
+#     avoid it clobbering this file — see caelestia-implementation-plan.md.
+#     github.com/caelestia-dots/caelestia/blob/main/fish/config.fish)
+#     NOTE: changes `gl` from this file's previous meaning (git pull) to
+#     git log, matching caelestia; use `gpl` for pull now. ---
+abbr lg  'lazygit'
+abbr gd  'git diff'
+abbr ga  'git add .'
+abbr gc  'git commit -am'
+abbr gl  'git log'
+abbr gs  'git status'
+abbr gst 'git stash'
+abbr gsp 'git stash pop'
+abbr gp  'git push'
+abbr gpl 'git pull'
+abbr gsw 'git switch'
+abbr gsm 'git switch main'
+abbr gb  'git branch'
+abbr gbd 'git branch -d'
+abbr gco 'git checkout'
+abbr gsh 'git show'
 
 # --- chezmoi shortcut ---
 alias cm   chezmoi
@@ -70,6 +90,8 @@ function fish_greeting
     set_color cyan
     echo "fish "(fish --version 2>&1 | string replace 'fish, version ' '')" · "(string trim (grep PRETTY_NAME /etc/os-release | string replace 'PRETTY_NAME=' '' | string replace -a '"' ''))" · "(uname -r)
     set_color normal
+    # Matches caelestia's default greeting behaviour when fastfetch is present
+    command -v fastfetch &>/dev/null && fastfetch --key-padding-left 5
 end
 
 # --- Starship prompt ---
@@ -78,3 +100,12 @@ starship init fish | source
 # --- zoxide (smart cd) ---
 zoxide init fish --cmd cd | source
 alias z cd
+
+# --- direnv (auto-load per-directory .envrc) ---
+command -v direnv &>/dev/null && direnv hook fish | source
+
+# --- Terminal prompt marking (OSC 133 — lets kitty/foot jump between
+#     prompts); same mechanism caelestia's fish config uses. ---
+function mark_prompt_start --on-event fish_prompt
+    echo -en "\e]133;A\e\\"
+end

@@ -65,6 +65,7 @@ PACMAN_PKGS=(
     bat
     eza
     zoxide
+    direnv
     jq
     unzip
     tree
@@ -79,6 +80,8 @@ PACMAN_PKGS=(
     # xdg-utils
     # pipewire
     # wireplumber
+    hyprland
+    noctalia
 
     # Utilties
     bolt
@@ -89,7 +92,17 @@ PACMAN_PKGS=(
 
 AUR_PKGS=(
     # AUR packages common to all desktops
-    # Add yours here
+    caelestia-cli
+    hyprmod
+    # Mainline Quickshell, needed by caelestia-shell -- replaces the archived
+    # noctalia-qs fork's package slot (Conflicts: quickshell, quickshell-git)
+    # now that niri runs the native v5 noctalia (no Quickshell dependency).
+    # MUST use the aur/ prefix: noctalia-qs's Provides=quickshell-git makes
+    # plain `quickshell-git` silently resolve to reinstalling noctalia-qs
+    # instead of building the real AUR package (confirmed via `paru -Sp
+    # quickshell-git` pointing at noctalia-qs's cached .pkg.tar.zst even
+    # after noctalia-qs was removed). See caelestia-implementation-plan.md.
+    aur/quickshell-git
 )
 
 {{-   if eq .machine_type "gaming" }}

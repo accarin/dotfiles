@@ -1,0 +1,71 @@
+#!/bin/bash
+# run_onchange_setup-caelestia.sh.tmpl
+# Re-runs only when .caelestia.pinned_rev is bumped in .chezmoidata.toml
+# (that's the only thing that changes this script's rendered content, and
+# thus its re-run trigger).
+#
+# Runs `caelestia install` the first time (no dots-state.json yet) and
+# `caelestia update` every time after that. Both are fully non-interactive
+# given --noconfirm + an explicit --disable-components list: caelestia-cli's
+# own confirm()/pause()/prompt_selection() helpers all short-circuit to
+# their defaults (or are skipped entirely) once --noconfirm is passed --
+# confirmed by reading caelestia-cli's io.py/install.py source, see
+# caelestia-implementation-plan.md. fish/starship stay disabled every run
+# so caelestia never clobbers this repo's own chezmoi-managed configs;
+# pipewire stays disabled because this machine's CachyOS-rebuilt PipeWire
+# stack is ahead of (and incompatible with) caelestia's manifest-pinned
+# pipewire-jack (see caelestia-implementation-plan.md §7.2). uwsm (optional,
+# off by default) is explicitly enabled -- see caelestia-implementation-
+# plan.md for why (systemd-managed Hyprland session). firefox is disabled
+# and zen (optional, off by default) is enabled instead -- Zen is now the
+# default browser; caelestia's firefox component's theme deploy would be
+# unused. NOTE: `caelestia update` can't add/remove components once
+# installed -- rolling this out on an already-installed machine requires
+# manually re-running `caelestia install` with the new component list.
+set -euo pipefail
+
+{{- $caelestiaEnabled := .caelestia.enabled }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+
+{{-   if hasKey $machine "caelestia" }}
+{{-     $machineCaelestia := index $machine "caelestia" }}
+{{-     if hasKey $machineCaelestia "enabled" }}
+{{-       $caelestiaEnabled = index $machineCaelestia "enabled" }}
+{{-     end }}
+{{-   end }}
+
+{{- end }}
+
+{{- if and (ne .machine_type "server") $caelestiaEnabled }}
+
+# pinned_rev: {{ .caelestia.pinned_rev }}
+
+if ! command -v caelestia &>/dev/null; then
+  echo "==> caelestia-cli not found (install-packages should have installed it), skipping."
+  exit 0
+fi
+
+dots_state="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia/dots-state.json"
+if [ -f "$dots_state" ]; then
+  echo "==> Updating caelestia dots..."
+  caelestia update --aur-helper {{ .caelestia.aur_helper }} --noconfirm
+else
+  echo "==> First run: installing caelestia dots (fish/starship/pipewire/firefox disabled, uwsm/zen enabled)..."
+  # Pre-create the backup dir so caelestia's own "already exists, overwrite?"
+  # prompt (default: no, under --noconfirm) skips its internal
+  # shutil.copytree ~/.config backup instead of crashing on it -- that call
+  # dies on any special file under ~/.config (e.g. an app's IPC socket) and
+  # isn't needed here anyway (fish/starship/vscode -- the only things it'd
+  # protect that we care about -- are chezmoi-managed and untouched by
+  # caelestia). NOTE: dropping --noconfirm instead (to answer that prompt
+  # interactively) is NOT an option -- that same flag also controls whether
+  # `--noconfirm` is passed to the underlying pacman/paru package installs,
+  # so removing it would make package installation interactive too.
+  mkdir -p "$HOME/.config.bak"
+  caelestia install --aur-helper {{ .caelestia.aur_helper }} --disable-components fish,starship,pipewire,firefox --enable-components uwsm,zen --noconfirm
+fi
+
+{{- end }}

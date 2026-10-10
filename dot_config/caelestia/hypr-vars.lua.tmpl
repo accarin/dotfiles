@@ -1,0 +1,52 @@
+{{- /*
+  ~/.config/caelestia/hypr-vars.lua — chezmoi-managed.
+  Caelestia's documented hook for default-app/keybind variables (browser,
+  terminal, etc.), read by the caelestia dots' own Hyprland Lua config.
+  Never overwritten by `caelestia update` (unlike everything under
+  ~/.config/hypr itself, which is fully caelestia-managed -- see
+  caelestia-implementation-plan.md §3.3).
+  Confirmed live on deep-thought: return a table of overrides here, e.g.
+  `return { browser = "firefox" }` -- hyprland.lua merges keys from this
+  table into variables.lua's own `vars` table before anything else loads.
+  NOTE: only variables.lua's own vars.* fields are affected this way --
+  e.g. kb_layout is NOT one of them (hyprland/input.lua hardcodes it),
+  so keyboard layout is set directly in hypr-user.lua instead.
+  GOTCHA (found 2026-08-12): Hyprland resolves single-letter bind keys as
+  literal keysyms -- a capital letter without Shift in the modifier list
+  (e.g. "SUPER + ALT + H") silently requires an actual Shift-produced
+  capital letter, so it never fires on plain SUPER+ALT+h. Always use
+  lowercase for a bare letter unless SHIFT is explicitly also in the combo.
+*/ -}}
+return {
+    -- Match niri's app choices: kitty terminal (Mod+Return), Brave browser
+    -- (Mod+B). fileExplorer stays thunar (caelestia default); niri's own
+    -- Mod+E already opens nautilus separately and isn't reproduced here.
+    terminal = "kitty",
+    browser  = "zen-browser", -- zen-browser-bin's actual binary name (no "zen" symlink exists)
+
+    -- --- Keys freed from their caelestia defaults so niri's own key at
+    -- that combo can carry niri's meaning instead (see hypr-user.lua for
+    -- what now lives on each of these; all conflicts found by diffing
+    -- niri's cfg/keybinds.kdl.tmpl against this file's own defaults) ---
+    kbWindowFullscreen = "SUPER + SHIFT + F", -- was SUPER + F (niri Mod+F = switch-preset-column-width, no dwindle equivalent -- see hypr-user.lua)
+    kbTerminal         = "SUPER + Return",    -- was SUPER + T (niri Mod+T = toggle floating)
+    kbBrowser          = "SUPER + b",         -- was SUPER + W (niri Mod+W = toggle group/tabbed display)
+    kbEditor           = "SUPER + ALT + c",   -- was SUPER + C (niri Mod+C = center-column)
+    kbShowPanels       = "CTRL + SUPER + k",  -- was SUPER + K (niri Mod+K = focus-window-up, vim alias)
+    kbRestoreLock      = "CTRL + SUPER + ALT + l", -- was SUPER + ALT + L (niri Mod+Alt+L = lock)
+    kbLock             = "SUPER + ALT + l",   -- was SUPER + L (niri Mod+L = focus-column-right, vim alias); now matches niri's own lock key exactly
+    kbGoToWsGroup      = "CTRL + SUPER + SHIFT", -- was CTRL + SUPER (+0-9) (niri Mod+Ctrl+1-9 = move window to workspace N -- see hypr-user.lua)
+
+    -- --- Kept the old key, added niri's key as an alternate (both work) ---
+    kbToggleGroup = { "SUPER + Comma", "SUPER + w" },              -- niri Mod+W = toggle-column-tabbed-display; group-toggle is the closest dwindle equivalent
+    kbCenterWindow = { "CTRL + SUPER + Backslash", "SUPER + c" },   -- niri Mod+C = center-column
+    kbSession      = { "CTRL + ALT + Delete", "SUPER + SHIFT + Q" }, -- niri Mod+Shift+Q = session menu (niri's own Ctrl+Alt+Delete instead hard-quits niri -- kept caelestia's safer session-menu behaviour on that key too, see hypr-user.lua note)
+    kbLauncher     = { "SUPER + SUPER_L", "SUPER + Space" },        -- niri Mod+Space = launcher
+
+    -- CTRL+SUPER+Left/Right freed (dropped from this list, mouse wheel +
+    -- Page Up/Down still work) so niri's Mod+Ctrl+Left/Right (move
+    -- column) can use them -- see hypr-user.lua.
+    kbNextWs = { "SUPER + mouse_down", "SUPER + Page_Down" },
+    kbPrevWs = { "SUPER + mouse_up", "SUPER + Page_Up" },
+}
+

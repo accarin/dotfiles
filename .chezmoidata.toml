@@ -91,21 +91,26 @@ identity_file = "~/.key/ssh.github.u2f-kvm.key"
 [machines.deep-thought.ssh_agent]
 enabled = true
 
-# [[machines.deep-thought.ssh_hosts.accarin.entries]]
-# host          = "oebb.ghe.com"
-# user          = "git"
-# identity_file = "~/.key/ssh.oebb.ghe.key"
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "git.maenle.net"
+user          = "git"
+identity_file = "~/.key/ssh.git.maenle.net.u2f-kvm.key"
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "oebb.ghe.com"
+user          = "git"
+identity_file = "~/.key/ssh.oebb.ghe.com.u2f-kvm.key"
 
 [[machines.deep-thought.ssh_hosts.accarin.entries]]
 host          = "nxs-1.nxs.internal"
 user          = "admin"
-identity_file = "~/.key/ssh.nxs-1.nxs.internal.u2f-kvm.key"
+identity_file = "~/.key/ssh.nxs-1.nxs.internal.key"
 port          = 62022
 
 [[machines.deep-thought.ssh_hosts.accarin.entries]]
 host          = "atm-1.nxs.internal"
 user          = "admin"
-identity_file = "~/.key/ssh.atm-1.nxs.internal.u2f-kvm.key"
+identity_file = "~/.key/ssh.atm-1.nxs.internal.key"
 port          = 62022
 
 [machines.pc46379.ssh_agent]
@@ -154,11 +159,12 @@ dns_fallback_ip_2 = "9.9.9.9"
 dns_fallback_2    = "dns.quad9.net"
 
 # Per-machine overrides, keyed by hostname.
-# Enabling DoT on a machine REQUIRES a client_id (24 random lowercase
+# Enabling DoT on a machine REQUIRES a client ID (24 random lowercase
 # letters/digits [a-z0-9]) registered/whitelisted in the AdGuard dashboard
-# above. If DoT is enabled here without a client_id, the onchange script
-# stops with a warning, suggests a freshly generated client_id, and prints
-# the dashboard link — nothing is deployed until client_id is filled in.
+# above. The client ID is a secret and is NOT stored here: the onchange script
+# reads it from the vaultlet secret `local/dot-client-id` (`vlt` must be in
+# PATH). If the secret doesn't exist yet, the script suggests a fresh ID,
+# prints the dashboard link and prompts for it, storing it via `vlt put`.
 #
 # interface_match (optional) overrides the wired-interface glob matched by
 # the NetworkManager conf.d drop-in that stops DHCP from overriding the DoT
@@ -167,9 +173,38 @@ dns_fallback_2    = "dns.quad9.net"
 #
 # [machines.hitchhiker.dot]
 # enabled         = true
-# client_id       = "<clientId>"
 # interface_match = "enp*"
 #
 [machines.deep-thought.dot]
 enabled   = true
-client_id = "9rq4yk6n7pk79o6vj3vjwo67"
+
+[machines.silverhand.dot]
+enabled   = true
+
+[machines.pc46379.dot]
+enabled   = true
+
+[machines.hitchhiker.dot]
+enabled   = true
+
+# =============================================================================
+# caelestia (Hyprland shell/rice) — opt-in per machine.
+# See caelestia-implementation-plan.md for the full design rationale.
+# =============================================================================
+
+# Global default — caelestia disabled unless explicitly enabled per machine
+[caelestia]
+enabled    = false
+# Bump this (any value change) to trigger `caelestia update` on the next
+# `chezmoi apply` — not a real caelestia version, just a manual trigger
+# embedded in run_onchange_update-caelestia.sh.tmpl's content hash.
+pinned_rev = "0"
+aur_helper = "paru"
+
+# Per-machine overrides, keyed by hostname.
+# `caelestia install`/`update` both run fully non-interactively (--noconfirm
+# + explicit --disable-components make caelestia-cli skip every prompt --
+# see caelestia-implementation-plan.md), so both are automated by
+# run_onchange_setup-caelestia.sh.tmpl -- nothing to run by hand.
+[machines.deep-thought.caelestia]
+enabled = true

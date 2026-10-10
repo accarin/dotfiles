@@ -109,6 +109,7 @@ Both fish and zsh ship with these shortcuts out of the box:
 ├── dot_gitconfig.tmpl        # → ~/.gitconfig
 ├── dot_face                  # → ~/.face (avatar)
 ├── dot_config/
+│   ├── caelestia/             # → ~/.config/caelestia/ (opt-in per machine; see below)
 │   ├── fish/                 # → ~/.config/fish/ (desktops only; eza/bat/rg/fd aliases, functions)
 │   ├── kitty/                # → ~/.config/kitty/
 │   ├── niri/                 # → ~/.config/niri/ (desktops only; modular cfg/*.kdl, own README)
@@ -145,6 +146,23 @@ Two mechanisms, both driven by data:
 | `install-packages` | pacman on Arch desktops, apt on Debian servers/wsl; sets login shell |
 | `setup-pam-fido2` | Deploys pam-u2f keys for sudo/login (machines with `u2f.enabled`) |
 | `setup-ssh-agent` | Enables the systemd user `ssh-agent.socket` (machines with `ssh_agent.enabled`) |
+| `setup-caelestia` | Runs `caelestia install`/`update` (machines with `caelestia.enabled`), only re-triggered by bumping `caelestia.pinned_rev` |
+
+### Caelestia (Hyprland shell/rice)
+
+Opt-in per machine via `[machines.<hostname>.caelestia] enabled = true` in
+`.chezmoidata.toml` — see [caelestia-implementation-plan.md](caelestia-implementation-plan.md)
+for the full design rationale (file-ownership conflicts, why `fish`/`starship`
+components must stay disabled, update strategy).
+
+Fully automated: `setup-caelestia` runs `caelestia install` the first time
+(no `dots-state.json` yet) and `caelestia update` every time after — both
+non-interactive (`--noconfirm` + explicit `--disable-components
+fish,starship,pipewire`). It only re-runs when you bump `caelestia.pinned_rev`
+in `.chezmoidata.toml`, so it's never re-triggered on every `chezmoi apply`.
+`pipewire` is disabled per-machine as needed — see
+[caelestia-implementation-plan.md](caelestia-implementation-plan.md) §7.2
+for why (CachyOS's PipeWire rebuild vs. caelestia's manifest-pinned version).
 
 ### SSH config generation
 
