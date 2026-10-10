@@ -209,14 +209,15 @@ dns_fallback_2    = "dns.quad9.net"
 [machines.deep-thought.dot]
 enabled   = true
 
+[machines.hitchhiker.dot]
+enabled   = true
+
 # [machines.silverhand.dot]
 # enabled   = true
 
 # [machines.pc46379.dot]
 # enabled   = true
 
-# [machines.hitchhiker.dot]
-# enabled   = true
 
 # =============================================================================
 # caelestia (Hyprland shell/rice) — opt-in per machine.
