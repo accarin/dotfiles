@@ -33,6 +33,21 @@ hl.monitor({
     bitdepth = 10,
     cm       = "auto",
 })
+{{- $monitor := dict }}
+{{- if hasKey .machines .chezmoi.hostname }}
+{{-   $caelestia := index (index .machines .chezmoi.hostname) "caelestia" | default dict }}
+{{-   $monitor = index $caelestia "monitor" | default dict }}
+{{- end }}
+{{- if $monitor }}
+
+-- Per-machine built-in display scale ([machines.<host>.caelestia.monitor]).
+hl.monitor({
+    output   = {{ $monitor.output | quote }},
+    mode     = "preferred",
+    position = "auto",
+    scale    = {{ $monitor.scale }},
+})
+{{- end }}
 
 -- Workaround for a known-experimental cm_auto_hdr bug: leaving HDR
 -- fullscreen (e.g. a YouTube video in a browser) sometimes reverts

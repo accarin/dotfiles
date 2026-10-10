@@ -165,6 +165,12 @@ in `.chezmoidata.toml`, so it's never re-triggered on every `chezmoi apply`.
 [caelestia-implementation-plan.md](caelestia-implementation-plan.md) §7.2
 for why (CachyOS's PipeWire rebuild vs. caelestia's manifest-pinned version).
 
+The colour scheme is runtime state (`~/.local/state/caelestia/scheme.json`),
+so it is declared in `.chezmoidata.toml` under `[caelestia.scheme]`
+(`name`/`flavour`/`mode`/`variant`, overridable via
+`[machines.<hostname>.caelestia.scheme]`) and applied by
+`setup-caelestia-scheme` via `caelestia scheme set` whenever those values change.
+
 ### Vaultlet (local secret manager)
 
 Opt-in per machine via `[machines.<hostname>.vaultlet] enabled = true` in

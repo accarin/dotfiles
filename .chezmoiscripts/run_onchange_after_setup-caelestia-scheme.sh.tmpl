@@ -1,0 +1,44 @@
+#!/bin/bash
+# run_onchange_after_setup-caelestia-scheme.sh.tmpl
+# caelestia keeps its colour scheme in ~/.local/state/caelestia/scheme.json
+# (runtime state, not under ~/.config), so chezmoi can't track the file itself.
+# This applies the scheme declared in .chezmoidata.toml ([caelestia.scheme],
+# overridable per machine) and re-runs only when those values change.
+set -uo pipefail
+
+{{- $caelestiaEnabled := .caelestia.enabled }}
+{{- $scheme := dict }}
+{{- range $k, $v := .caelestia.scheme }}
+{{-   $_ := set $scheme $k $v }}
+{{- end }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "caelestia" }}
+{{-     $machineCaelestia := index $machine "caelestia" }}
+{{-     if hasKey $machineCaelestia "enabled" }}
+{{-       $caelestiaEnabled = index $machineCaelestia "enabled" }}
+{{-     end }}
+{{-     if hasKey $machineCaelestia "scheme" }}
+{{-       range $k, $v := index $machineCaelestia "scheme" }}
+{{-         $_ := set $scheme $k $v }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+{{- if and (ne .machine_type "server") $caelestiaEnabled }}
+
+# scheme: {{ $scheme | toJson }}
+
+if ! command -v caelestia &>/dev/null; then
+  echo "==> caelestia-cli not found, skipping scheme."
+  exit 0
+fi
+
+echo "==> Applying caelestia scheme: {{ $scheme.name }}/{{ $scheme.flavour }}/{{ $scheme.mode }}/{{ $scheme.variant }}"
+caelestia scheme set -n {{ $scheme.name | quote }} -f {{ $scheme.flavour | quote }} -m {{ $scheme.mode | quote }} -v {{ $scheme.variant | quote }} \
+  || echo "==> WARNING: 'caelestia scheme set' failed; set it manually." >&2
+
+{{- end }}

@@ -232,6 +232,16 @@ enabled    = false
 pinned_rev = "0"
 aur_helper = "paru"
 
+# Colour scheme, applied by run_onchange_after_setup-caelestia-scheme.sh.tmpl
+# (`caelestia scheme set`); re-applied whenever a value here changes.
+# Override per machine via [machines.<hostname>.caelestia.scheme].
+# `caelestia scheme set -h` lists valid names/variants.
+[caelestia.scheme]
+name    = "tokyonight"
+flavour = "medium"
+mode    = "dark"
+variant = "tonalspot"
+
 # Per-machine overrides, keyed by hostname.
 # `caelestia install`/`update` both run fully non-interactively (--noconfirm
 # + explicit --disable-components make caelestia-cli skip every prompt --
@@ -242,3 +252,10 @@ enabled = true
 
 [machines.hitchhiker.caelestia]
 enabled = true
+
+# Built-in laptop panel: Hyprland defaults to scale 1, far too small on a
+# high-DPI screen. Rendered into hypr-user.lua.tmpl; find the output name
+# with `hyprctl monitors`.
+[machines.hitchhiker.caelestia.monitor]
+output = "eDP-1"
+scale  = 1.5
