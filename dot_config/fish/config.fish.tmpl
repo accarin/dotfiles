@@ -87,11 +87,11 @@ alias cmd  'chezmoi --no-pager diff'
 
 # --- Greeting ---
 function fish_greeting
-    set_color cyan
-    echo "fish "(fish --version 2>&1 | string replace 'fish, version ' '')" · "(string trim (grep PRETTY_NAME /etc/os-release | string replace 'PRETTY_NAME=' '' | string replace -a '"' ''))" · "(uname -r)
-    set_color normal
-    # Matches caelestia's default greeting behaviour when fastfetch is present
-    command -v fastfetch &>/dev/null && fastfetch --key-padding-left 5
+    # fetch-banner handles icon detection, tmux/vscode skipping and narrow terminals.
+    # `set -g banner_icons nerd|emoji` forces an icon set.
+    set -l env COLUMNS=$COLUMNS
+    set -q banner_icons; and set -a env BANNER_ICONS=$banner_icons
+    command -q fetch-banner; and env $env fetch-banner
 end
 
 # --- Starship prompt ---

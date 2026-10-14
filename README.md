@@ -110,10 +110,13 @@ Both fish and zsh ship with these shortcuts out of the box:
 ├── dot_face                  # → ~/.face (avatar)
 ├── dot_config/
 │   ├── caelestia/             # → ~/.config/caelestia/ (opt-in per machine; see below)
+│   ├── fastfetch/            # → ~/.config/fastfetch/ (startup banner: cat logo + specs; Nerd Font + emoji configs rendered from .chezmoitemplates/fastfetch.jsonc)
 │   ├── fish/                 # → ~/.config/fish/ (desktops only; eza/bat/rg/fd aliases, functions)
 │   ├── kitty/                # → ~/.config/kitty/
 │   ├── niri/                 # → ~/.config/niri/ (desktops only; modular cfg/*.kdl, own README)
 │   └── starship/             # → ~/.config/starship/ (desktops only)
+├── dot_local/bin/
+│   └── executable_fetch-banner # → ~/.local/bin/fetch-banner (startup banner for fish + bash; picks Nerd/emoji icons, skips tmux/VS Code)
 ├── dot_vscode/
 │   └── modify_argv.json      # → ~/.vscode/argv.json (desktops only; merges gnome-keyring + Wayland tweaks into VS Code's own file, preserving its crash-reporter-id)
 └── private_dot_ssh/
@@ -131,6 +134,10 @@ Both fish and zsh ship with these shortcuts out of the box:
 | `modify_foo` | Template that rewrites only part of an existing target file |
 | `empty_foo` | Deploy even if empty (used as a `.keep`) |
 | `run_onchange_*.sh` | Script that re-runs whenever its content changes |
+
+### Startup banner
+
+Fish and bash both call `fetch-banner`, which runs fastfetch with a cat logo on the left and kernel/uptime/shell/memory/user/host/distro (plus a few more) on the right. Icons are Nerd Font glyphs in kitty/foot/alacritty/wezterm and emoji elsewhere (TTY, unknown terminals, most SSH sessions); force one with `BANNER_ICONS=nerd|emoji` (bash) or `set -g banner_icons nerd|emoji` (fish). It stays silent inside tmux and the VS Code terminal, and drops the logo below 70 columns. On Debian it needs `fastfetch` from apt (Debian 13+ / Ubuntu 25.04+); on older releases the banner is simply skipped.
 
 ### Per-machine logic
 

@@ -33,6 +33,13 @@ DEBIAN_PKGS=(
 
 echo "==> Installing Debian packages..."
 sudo apt-get update -qq
+# fastfetch is only packaged in Debian 13+ / Ubuntu 25.04+; skip it elsewhere
+# (the startup banner then stays silent)
+if apt-cache show fastfetch >/dev/null 2>&1; then
+    DEBIAN_PKGS+=(fastfetch)
+else
+    echo "==> fastfetch not available in this release's apt repos; skipping"
+fi
 sudo apt-get install -y "${DEBIAN_PKGS[@]}"
 
 # Set bash as the default login shell (servers/wsl only — coadmins have
