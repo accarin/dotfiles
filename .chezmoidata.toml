@@ -164,6 +164,18 @@ user          = "admin"
 identity_file = "~/.key/ssh.atm-1.nxs.internal.key"
 port          = 62022
 
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "pve-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.pve-1.nxs.internal.key"
+port          = 62022
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "pve-2.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.pve-2.nxs.internal.key"
+port          = 62022
+
 [machines.hitchhiker.ssh_agent]
 enabled = true
 
