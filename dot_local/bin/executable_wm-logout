@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# wm-logout — end the current Wayland desktop session cleanly.
+# Managed by chezmoi. Used by the `logout` alias (fish + bash) and by
+# caelestia's session menu (~/.config/caelestia/shell.json).
+#
+# Exits the *compositor* rather than calling `loginctl terminate-*`: the
+# latter also SIGTERMs sddm-helper, SDDM treats that as an auth error and
+# never brings the greeter back (black screen). Exiting the compositor lets
+# start-hyprland / sddm-helper exit 0 and SDDM returns to the greeter.
+#
+#   uwsm-managed session (wayland-wm@*.service active) -> uwsm stop
+#   Hyprland  -> hyprshutdown (closes apps gracefully, then exits Hyprland),
+#                fallback: hyprctl dispatch 'hl.dsp.exit()' (Lua config, >= 0.55)
+#   niri      -> niri msg action quit --skip-confirmation
+#
+# Refuses to run over SSH, so a stale compositor env (e.g. tmux started on
+# the desktop, attached remotely) can't kill the local session by accident.
+
+set -u
+
+die() { printf 'wm-logout: %s\n' "$*" >&2; exit 1; }
+
+if [ -n "${SSH_CONNECTION:-}${SSH_TTY:-}" ]; then
+    die "SSH session detected — not ending the desktop session (use 'exit' to leave SSH)"
+fi
+
+# --- Detect compositor: socket env vars first, XDG_CURRENT_DESKTOP as fallback
+wm=""
+if [ -n "${NIRI_SOCKET:-}" ]; then
+    wm=niri
+elif [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+    wm=hyprland
+else
+    case "${XDG_CURRENT_DESKTOP:-}" in
+        *niri*)     wm=niri ;;
+        *Hyprland*) wm=hyprland ;;
+    esac
+fi
+
+[ -n "$wm" ] || die "no supported compositor detected (Hyprland, niri)"
+
+# --- uwsm: stop the compositor unit; uwsm tears down the session cleanly.
+# `uwsm check is-active` without args also matches graphical-session.target,
+# which Hyprland/niri activate without uwsm too, so check the unit directly.
+if command -v uwsm >/dev/null 2>&1 &&
+   systemctl --user list-units --state=active --no-legend 'wayland-wm@*.service' 2>/dev/null | grep -q .; then
+    exec uwsm stop
+fi
+
+case "$wm" in
+    hyprland)
+        if command -v hyprshutdown >/dev/null 2>&1; then
+            exec hyprshutdown
+        fi
+        exec hyprctl dispatch 'hl.dsp.exit()'
+        ;;
+    niri)
+        exec niri msg action quit --skip-confirmation
+        ;;
+esac

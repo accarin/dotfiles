@@ -82,5 +82,9 @@ alias cmd='chezmoi --no-pager diff'
 command -v batcat >/dev/null 2>&1 && alias bat=batcat
 command -v fdfind >/dev/null 2>&1 && alias fd=fdfind
 
+# End the desktop session (Hyprland/niri/uwsm aware) instead of the shell
+# builtin; only where wm-logout is deployed (desktops, see .chezmoiignore)
+command -v wm-logout >/dev/null 2>&1 && alias logout=wm-logout
+
 # --- Greeting (skips itself in tmux and VS Code) ---
 command -v fetch-banner >/dev/null 2>&1 && fetch-banner

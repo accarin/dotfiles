@@ -14,6 +14,10 @@ README.md
 .config/hypr
 .vscode/argv.json
 {{- end }}
+# Session logout helper (logout alias) — desktops only
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
+.local/bin/wm-logout
+{{- end }}
 
 # --- Caelestia (Hyprland shell/rice) configs ---
 # Only deploy the chezmoi-managed caelestia override files (shell.json,

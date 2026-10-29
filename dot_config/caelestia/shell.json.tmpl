@@ -27,7 +27,9 @@
   sddm-helper exit 0 so SDDM brings the greeter back. Hyprland >= 0.55 uses a
   Lua config, so the legacy `hyprctl dispatch exit` is a syntax error; the
   dispatcher is `hl.dsp.exit()`. hyprshutdown (if installed) closes apps
-  gracefully first, same as Hyprland's own stock config.
+  gracefully first, same as Hyprland's own stock config. All of that lives in
+  ~/.local/bin/wm-logout (shared with the shell `logout` alias); absolute path
+  so it works regardless of the compositor's PATH.
 */ -}}
 {
   "appearance": {
@@ -38,9 +40,7 @@
   "session": {
     "commands": {
       "logout": [
-        "sh",
-        "-c",
-        "command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"
+        "{{ .chezmoi.homeDir }}/.local/bin/wm-logout"
       ]
     }
   }

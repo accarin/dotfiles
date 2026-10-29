@@ -45,6 +45,8 @@ alias vi   nvim
 alias vim  nvim
 alias ..   'cd ..'
 alias ...  'cd ../..'
+# End the desktop session (Hyprland/niri/uwsm aware) — ~/.local/bin/wm-logout
+command -q wm-logout; and alias logout wm-logout
 
 # --- Modern tool replacements (personal desktop shell — fine to override
 #     core tools here, unlike the shared-friendly bash setup on servers) ---

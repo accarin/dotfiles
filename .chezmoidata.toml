@@ -265,7 +265,7 @@ enabled    = false
 # Bump this (any value change) to trigger `caelestia update` on the next
 # `chezmoi apply` — not a real caelestia version, just a manual trigger
 # embedded in run_onchange_update-caelestia.sh.tmpl's content hash.
-pinned_rev = "0"
+pinned_rev = "1"
 aur_helper = "paru"
 
 # Colour scheme, applied by run_onchange_after_setup-caelestia-scheme.sh.tmpl
