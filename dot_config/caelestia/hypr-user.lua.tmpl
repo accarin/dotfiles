@@ -53,6 +53,19 @@ hl.monitor({
 })
 {{- end }}
 
+-- Respawn the caelestia shell when a monitor (re)appears. Since Hyprland
+-- 0.57, a KVM switch or the monitor's power saving drops the only output
+-- (hyprland.log: "drm: Connector DP-1 disconnected"); quickshell then logs
+-- "There are no outputs - creating placeholder screen" -> "Could not create
+-- EGL surface" and exits silently (no coredump), leaving no bar after the
+-- monitor returns. Hooking monitor.added (not a systemd Restart=) restarts
+-- it only once an output exists again -- a restart while there are zero
+-- outputs would just die again. `caelestia shell -d` runs `qs -n`
+-- (--no-duplicate), so it's a no-op while the shell is still alive.
+hl.on("monitor.added", function()
+    hl.exec_cmd("sleep 1 && caelestia shell -d")
+end)
+
 -- Workaround for a known-experimental cm_auto_hdr bug: leaving HDR
 -- fullscreen (e.g. a YouTube video in a browser) sometimes reverts
 -- Hyprland's own tracked state to "wide" (confirmed via `hyprctl monitors`)
