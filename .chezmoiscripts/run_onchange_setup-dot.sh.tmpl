@@ -35,7 +35,38 @@ set -euo pipefail
 
 {{- if not $dot_enabled }}
 
-echo "==> DNS-over-TLS setup skipped (not enabled for {{ $hostname }})."
+echo "==> DNS-over-TLS not enabled for {{ $hostname }}, removing any leftovers..."
+# Undo what the enabled branch below deploys, so the machine falls back to the
+# DNS servers handed out by DHCP. Idempotent: only touches (and only asks for
+# sudo for) files that are actually present.
+
+DOT_CONF_PATH="/etc/systemd/resolved.conf.d/dot.conf"
+if [ -e "$DOT_CONF_PATH" ]; then
+  echo "==> Removing $DOT_CONF_PATH and restarting systemd-resolved..."
+  sudo rm -f "$DOT_CONF_PATH"
+  sudo systemctl restart systemd-resolved
+fi
+
+NM_CONF_PATH="/etc/NetworkManager/conf.d/dns-override.conf"
+if [ -e "$NM_CONF_PATH" ]; then
+  echo "==> Removing $NM_CONF_PATH and restarting NetworkManager..."
+  sudo rm -f "$NM_CONF_PATH"
+  sudo systemctl restart NetworkManager
+fi
+
+# Only drop the "dns" key if it is exactly what the enabled branch set, so a
+# hand-made Docker DNS setting is left alone.
+DAEMON_JSON_PATH="/etc/docker/daemon.json"
+if [ -f "$DAEMON_JSON_PATH" ] && command -v jq &>/dev/null; then
+  DAEMON_JSON_OLD_CONTENT=$(cat "$DAEMON_JSON_PATH" 2>/dev/null || sudo cat "$DAEMON_JSON_PATH")
+  if printf '%s' "$DAEMON_JSON_OLD_CONTENT" | jq -e --arg d1 "{{ $dns_fallback_ip_1 }}" --arg d2 "{{ $dns_fallback_ip_2 }}" '.dns == [$d1, $d2]' >/dev/null; then
+    echo "==> Removing DNS fallback from $DAEMON_JSON_PATH and restarting Docker..."
+    printf '%s' "$DAEMON_JSON_OLD_CONTENT" | jq 'del(.dns)' | sudo install -Dm644 /dev/stdin "$DAEMON_JSON_PATH"
+    sudo systemctl restart docker
+  fi
+fi
+
+echo "==> DNS-over-TLS cleanup complete."
 
 {{- else }}
 

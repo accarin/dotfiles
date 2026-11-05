@@ -176,6 +176,25 @@ user          = "admin"
 identity_file = "~/.key/ssh.pve-2.nxs.internal.key"
 port          = 62022
 
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "waf-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.waf-1.nxs.internal.key"
+port          = 62022
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "waf-2.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.waf-2.nxs.internal.key"
+port          = 62022
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "dns-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.dns-1.nxs.internal.key"
+port          = 62022
+
+
 [machines.hitchhiker.ssh_agent]
 enabled = true
 
@@ -242,13 +261,13 @@ dns_fallback_2    = "dns.quad9.net"
 # interface_match = "enp*"
 #
 [machines.deep-thought.dot]
-enabled   = true
+# enabled   = true
 
 [machines.hitchhiker.dot]
-enabled   = true
+# enabled   = true
 
 [machines.silverhand.dot]
-enabled   = true
+# enabled   = true
 
 # [machines.pc46379.dot]
 # enabled   = true
