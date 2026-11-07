@@ -12,7 +12,7 @@ Config is split into `cfg/` partials and included from `config.kdl`.
 | Bind | Action | Default |
 |---|---|---|
 | `Mod+Space` | Open app launcher | *(not bound)* |
-| `Mod+Return` | Open terminal (Alacritty) | `Mod+T` |
+| `Mod+Return` | Open terminal (Ghostty) | `Mod+T` |
 | `Mod+B` | Open browser (Firefox) | *(not bound)* |
 | `Mod+E` | Open file manager (Nautilus) | *(not bound)* |
 | `Mod+Alt+L` | Lock screen | *(not bound)* |

@@ -18,10 +18,11 @@
   lowercase for a bare letter unless SHIFT is explicitly also in the combo.
 */ -}}
 return {
-    -- Match niri's app choices: kitty terminal (Mod+Return), Brave browser
-    -- (Mod+B). fileExplorer stays thunar (caelestia default); niri's own
-    -- Mod+E already opens nautilus separately and isn't reproduced here.
-    terminal = "kitty",
+    -- Match niri's app choices: ghostty terminal (Mod+Return; alacritty is
+    -- the installed alternative), Brave browser (Mod+B). fileExplorer stays
+    -- thunar (caelestia default); niri's own Mod+E already opens nautilus
+    -- separately and isn't reproduced here.
+    terminal = "ghostty",
     browser  = "zen-browser", -- zen-browser-bin's actual binary name (no "zen" symlink exists)
 
     -- --- Keys freed from their caelestia defaults so niri's own key at

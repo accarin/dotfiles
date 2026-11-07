@@ -18,6 +18,12 @@ README.md
 {{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
 .local/bin/wm-logout
 {{- end }}
+# Terminal emulator configs (ghostty = main, alacritty = alternative) — desktops only
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") }}
+.config/ghostty
+.config/alacritty
+.local/bin/retire-kitty-foot
+{{- end }}
 
 # --- Caelestia (Hyprland shell/rice) configs ---
 # Only deploy the chezmoi-managed caelestia override files (shell.json,

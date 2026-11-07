@@ -1,0 +1,13 @@
+# Managed by chezmoi. Ghostty = main terminal; deliberately near-default
+# (bundled JetBrains Mono + Nerd Font symbols, colours from caelestia's
+# sequences.txt replayed by fish). Only deviations from defaults below.
+
+# SSH: Debian servers have no xterm-ghostty terminfo (ncurses-term only ships
+# "ghostty"), so `ssh` from Ghostty's fish integration sends
+# TERM=xterm-256color instead -- also fine for root after `sudo -i` there.
+# Other shell-integration features keep their defaults.
+shell-integration-features = ssh-env
+
+# Selecting text copies to the clipboard too (like kitty's copy_on_select),
+# not only to the primary selection (re-enabled in hypr-user.lua).
+copy-on-select = clipboard

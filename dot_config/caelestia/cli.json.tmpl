@@ -12,9 +12,23 @@
   with Brave 154 (reproduced on deep-thought and hitchhiker), hanging the
   command. Brave still reads the already-written policy file in
   /etc/brave/policies/managed on startup. Re-enable once fixed upstream.
+
+  toggles.sysmon.btop.command: caelestia hard-codes foot for the sysmon
+  special workspace's btop (both its Hyprland Lua config and caelestia-cli
+  read this override and merge it per key). foot is not installed here, so
+  launch it in alacritty instead; --class/--title keep caelestia's default
+  window match (class=btop, title=btop) working unchanged. `fish -C` keeps
+  fish's startup (incl. the caelestia colour replay) before exec'ing btop.
 */ -}}
 {
   "theme": {
     "enableChromium": false
+  },
+  "toggles": {
+    "sysmon": {
+      "btop": {
+        "command": ["alacritty", "--class", "btop", "--title", "btop", "-e", "fish", "-C", "exec btop"]
+      }
+    }
   }
 }

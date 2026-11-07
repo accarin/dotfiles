@@ -109,14 +109,16 @@ Both fish and zsh ship with these shortcuts out of the box:
 ├── dot_gitconfig.tmpl        # → ~/.gitconfig
 ├── dot_face                  # → ~/.face (avatar)
 ├── dot_config/
+│   ├── alacritty/            # → ~/.config/alacritty/ (desktops only; alternative terminal, font only)
 │   ├── caelestia/             # → ~/.config/caelestia/ (opt-in per machine; see below)
 │   ├── fastfetch/            # → ~/.config/fastfetch/ (startup banner: cat logo + specs; Nerd Font + emoji configs rendered from .chezmoitemplates/fastfetch.jsonc)
 │   ├── fish/                 # → ~/.config/fish/ (desktops only; eza/bat/rg/fd aliases, functions)
-│   ├── kitty/                # → ~/.config/kitty/
+│   ├── ghostty/              # → ~/.config/ghostty/ (desktops only; main terminal, near-default)
 │   ├── niri/                 # → ~/.config/niri/ (desktops only; modular cfg/*.kdl, own README)
 │   └── starship/             # → ~/.config/starship/ (desktops only)
 ├── dot_local/bin/
-│   └── executable_fetch-banner # → ~/.local/bin/fetch-banner (startup banner for fish + bash; picks Nerd/emoji icons, skips tmux/VS Code)
+│   ├── executable_fetch-banner # → ~/.local/bin/fetch-banner (startup banner for fish + bash; picks Nerd/emoji icons, skips tmux/VS Code)
+│   └── executable_retire-kitty-foot # → ~/.local/bin/retire-kitty-foot (desktops only; one-shot kitty/foot → ghostty migration, run after `chezmoi update`; `--dry-run` first)
 ├── dot_vscode/
 │   └── modify_argv.json      # → ~/.vscode/argv.json (desktops only; merges gnome-keyring + Wayland tweaks into VS Code's own file, preserving its crash-reporter-id)
 └── private_dot_ssh/
@@ -137,7 +139,7 @@ Both fish and zsh ship with these shortcuts out of the box:
 
 ### Startup banner
 
-Fish and bash both call `fetch-banner`, which runs fastfetch with a cat logo on the left and kernel/uptime/shell/memory/user/host/distro (plus a few more) on the right. Icons are Nerd Font glyphs in kitty/foot/alacritty/wezterm and emoji elsewhere (TTY, unknown terminals, most SSH sessions); force one with `BANNER_ICONS=nerd|emoji` (bash) or `set -g banner_icons nerd|emoji` (fish). It stays silent inside tmux and the VS Code terminal, and drops the logo below 70 columns. On Debian it needs `fastfetch` from apt (Debian 13+ / Ubuntu 25.04+); on older releases the banner is simply skipped.
+Fish and bash both call `fetch-banner`, which runs fastfetch with a cat logo on the left and kernel/uptime/shell/memory/user/host/distro (plus a few more) on the right. Icons are Nerd Font glyphs in ghostty/alacritty/wezterm and emoji elsewhere (TTY, unknown terminals, most SSH sessions); force one with `BANNER_ICONS=nerd|emoji` (bash) or `set -g banner_icons nerd|emoji` (fish). It stays silent inside tmux and the VS Code terminal, and drops the logo below 70 columns. On Debian it needs `fastfetch` from apt (Debian 13+ / Ubuntu 25.04+); on older releases the banner is simply skipped.
 
 ### Per-machine logic
 
@@ -156,6 +158,7 @@ Two mechanisms, both driven by data:
 | `setup-ssh-agent` | Enables the systemd user `ssh-agent.socket` (machines with `ssh_agent.enabled`) |
 | `setup-caelestia` | Runs `caelestia install`/`update` (machines with `caelestia.enabled`), only re-triggered by bumping `caelestia.pinned_rev` |
 | `setup-netbird` | Installs + starts the netbird service on Arch desktops (`netbird.enabled`, default on) and recommends the one-time `netbird up` login |
+| `setup-nfs-mounts` | NAS shares (NFSv4.1) as systemd `.mount` + `.automount` units on machines with `nfs.enabled`; see below |
 
 ### Netbird
 
@@ -172,6 +175,16 @@ chezmoi — if the client isn't connected, the apply output tells you to run:
 ```sh
 netbird up --management-url https://nexus.tautschnig.org
 ```
+
+### NAS mounts (NFS)
+
+Synology shares are mounted via NFSv4.1 by `setup-nfs-mounts`, configured in `.chezmoidata.toml`'s `[nfs]` table (opt-in per machine: `[machines.<host>.nfs] enabled = true`). They are **systemd units, not `/etc/fstab` lines**: chezmoi owns `/etc/systemd/system/mnt-nas-<server>-<share>.{mount,automount}` outright and never touches fstab (systemd turns fstab lines into the same units anyway).
+
+- Mountpoints: `/mnt/nas/<server>/<share>`, e.g. `/mnt/nas/vie/share`. Names are `[a-z0-9_]+` only, since a `-` would show up as `\x2d` in unit names.
+- Nothing is mounted at boot; the first access mounts the share and it's unmounted again after `idle_timeout` (default 10min) without use. Mount attempts give up after `mount_timeout` (default 15s).
+- Status: `systemctl list-units 'mnt-nas-*'`. Mount by hand: `ls /mnt/nas/vie/share` or `sudo systemctl start mnt-nas-vie-share.mount`.
+- Options default to `vers=4.1,hard` (blocks while the NAS is unreachable, no data loss); override `options` per machine, e.g. `soft` on notebooks.
+- Removing a share from `mounts` (or disabling `nfs`) stops and deletes its units on the next apply; only units carrying the script's "Managed by chezmoi" marker are touched.
 
 ### Caelestia (Hyprland shell/rice)
 

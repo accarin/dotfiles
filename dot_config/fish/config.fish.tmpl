@@ -87,6 +87,15 @@ alias cmt  'chezmoi --no-pager apply --dry-run --verbose'
 alias cma  'chezmoi --no-pager apply -v'
 alias cmd  'chezmoi --no-pager diff'
 
+# --- caelestia terminal colours ---
+# caelestia only pushes its scheme into terminals open at scheme-change time
+# and saves it to sequences.txt; replay it for new shells, as caelestia's own
+# fish config does. `command cat` bypasses the cat->bat alias: bat frames the
+# output and pages it through less, which escapes the OSC colour sequences.
+if status is-interactive; and test -r ~/.local/state/caelestia/sequences.txt
+    command cat ~/.local/state/caelestia/sequences.txt
+end
+
 # --- Greeting ---
 function fish_greeting
     # fetch-banner handles icon detection, tmux/vscode skipping and narrow terminals.
@@ -106,7 +115,7 @@ alias z cd
 # --- direnv (auto-load per-directory .envrc) ---
 command -v direnv &>/dev/null && direnv hook fish | source
 
-# --- Terminal prompt marking (OSC 133 — lets kitty/foot jump between
+# --- Terminal prompt marking (OSC 133 — lets ghostty jump between
 #     prompts); same mechanism caelestia's fish config uses. ---
 function mark_prompt_start --on-event fish_prompt
     echo -en "\e]133;A\e\\"

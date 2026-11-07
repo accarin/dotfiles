@@ -1,2 +1,4 @@
 .zshrc
 .config/Code/argv.json
+# kitty retired (ghostty = main terminal, alacritty = alternative)
+.config/kitty

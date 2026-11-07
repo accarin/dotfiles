@@ -274,6 +274,79 @@ dns_fallback_2    = "dns.quad9.net"
 
 
 # =============================================================================
+# NFS mounts (Synology NAS shares via NFSv4.1) — opt-in per machine.
+# =============================================================================
+# run_onchange_after_setup-nfs-mounts.sh.tmpl writes one systemd .mount +
+# .automount pair per share to /etc/systemd/system/ -- deliberately NOT
+# /etc/fstab, so chezmoi owns its files outright and never rewrites a file the
+# boot depends on. (fstab lines would become the very same units at boot via
+# systemd-fstab-generator anyway.) Nothing is mounted at boot: the first access
+# mounts the share (`ls /mnt/nas/vie/share`, or
+# `sudo systemctl start mnt-nas-vie-share.mount`), and it's unmounted again
+# after idle_timeout without use. List them: `systemctl list-units 'mnt-nas-*'`.
+#
+# Mountpoint = /mnt/nas/<server>/<share>, unit = mnt-nas-<server>-<share>.
+# Server and share names must match [a-z0-9_]+ -- a "-" in a path would be
+# escaped as "\x2d" in the unit name, so the script refuses it.
+#
+# Units carry a "Managed by chezmoi" marker; marked units no longer listed in
+# `mounts` (or all of them, when disabled) are stopped and removed on the next
+# apply. A share that's busy at that moment stays mounted until released.
+
+# Global defaults (all keys except `servers` are overridable per machine).
+[nfs]
+enabled       = false
+# Mount options appended to the fixed "vers=4.1". `hard` (default): I/O to an
+# unreachable NAS blocks until it's back -- no silent data loss. `soft`
+# (e.g. "soft,timeo=100,retrans=3") returns I/O errors instead of hanging;
+# risk of corrupted writes. Consider soft on notebooks that leave the site.
+options       = "hard"
+# Unmount after this long without use (systemd TimeoutIdleSec=; "0" = never).
+idle_timeout  = "10min"
+# Give up a mount attempt after this long, e.g. NAS unreachable
+# (systemd TimeoutSec= of the .mount unit).
+mount_timeout = "15s"
+# Shares to mount, as "<server>/<share>" keys of [nfs.servers] below.
+# A per-machine `mounts` REPLACES this list (it isn't merged).
+mounts        = ["vie/share", "vie/backup"]
+
+# NAS catalogue. `export` = the "Mount path" DSM shows in the shared folder's
+# NFS Permissions dialog.
+[nfs.servers.vie]
+address = "192.168.1.30"   # Synology in Vienna, static
+
+[nfs.servers.vie.shares.share]
+export = "/volume2/share"
+
+[nfs.servers.vie.shares.backup]
+export = "/volume1/backup"
+
+# DSM admin scripts and general admin stuff -- deep-thought only.
+[nfs.servers.vie.shares.admin]
+export = "/volume1/admin"
+
+[nfs.servers.vie.shares.media]
+export = "/volume1/media"
+
+# Per-machine overrides, keyed by hostname (any key above except `servers`).
+# The DSM NFS rule must allow the machine's IP (VLAN 1 / 192.168.1.0/24).
+[machines.deep-thought.nfs]
+enabled = true
+mounts  = ["vie/share", "vie/backup", "vie/admin", "vie/media"]
+
+# [machines.silverhand.nfs]
+# enabled = true
+
+# Notebooks leave the site: maybe `options = "soft,timeo=100,retrans=3"`.
+# [machines.hitchhiker.nfs]
+# enabled = true
+
+# pc46379: only if it's on VLAN 1 -- the DSM rule denies other VLANs.
+# [machines.pc46379.nfs]
+# enabled = true
+
+
+# =============================================================================
 # caelestia (Hyprland shell/rice) — opt-in per machine.
 # See caelestia-implementation-plan.md for the full design rationale.
 # =============================================================================

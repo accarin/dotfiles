@@ -1,0 +1,8 @@
+# Managed by chezmoi. Alacritty = alternative terminal (ghostty is main).
+# Deliberately near-default: only the font is set, because alacritty has no
+# bundled font (its default `monospace` resolves to Noto Sans Mono, no Nerd
+# Font glyphs). Colours come from caelestia's sequences.txt, replayed by fish.
+# Replaces the CachyOS skel copy (cachyos-alacritty-config, Nord theme).
+
+[font]
+normal = { family = "JetBrainsMono Nerd Font" }

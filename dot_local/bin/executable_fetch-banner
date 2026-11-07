@@ -16,8 +16,10 @@ if [ -z "$mode" ]; then
     mode=emoji
     case "${TERM:-}" in
         linux) ;;
-        xterm-kitty|foot|foot-*|alacritty|wezterm) mode=nerd ;;
-        *) [ -n "${KITTY_WINDOW_ID:-}" ] && mode=nerd ;;
+        xterm-ghostty|alacritty|wezterm) mode=nerd ;;
+        # TERM overridden (e.g. xterm-256color): recognise ghostty/alacritty
+        # by the env vars they set in their child shells
+        *) [ -n "${GHOSTTY_RESOURCES_DIR:-}${ALACRITTY_WINDOW_ID:-}" ] && mode=nerd ;;
     esac
 fi
 

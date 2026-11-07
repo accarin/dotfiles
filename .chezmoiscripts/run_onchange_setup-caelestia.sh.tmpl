@@ -1,8 +1,10 @@
 #!/bin/bash
 # run_onchange_setup-caelestia.sh.tmpl
-# Re-runs only when .caelestia.pinned_rev is bumped in .chezmoidata.toml
-# (that's the only thing that changes this script's rendered content, and
-# thus its re-run trigger).
+# Re-runs whenever this script's rendered content changes: normally when
+# .caelestia.pinned_rev is bumped in .chezmoidata.toml, but ANY edit to the
+# rendered text (component lists, these comments) triggers it too. On an
+# installed machine that runs `caelestia update`, which always pulls the
+# dots repo's current tip (pinned_rev is only a re-run counter).
 #
 # Runs `caelestia install` the first time (no dots-state.json yet) and
 # `caelestia update` every time after that. Both are fully non-interactive
@@ -19,7 +21,9 @@
 # plan.md for why (systemd-managed Hyprland session). firefox is disabled
 # and zen (optional, off by default) is enabled instead -- Zen is now the
 # default browser; caelestia's firefox component's theme deploy would be
-# unused. NOTE: `caelestia update` can't add/remove components once
+# unused. foot is disabled: ghostty is the main terminal (alacritty the
+# alternative); caelestia's hard-coded foot launch for the sysmon (btop)
+# toggle is overridden in cli.json. NOTE: `caelestia update` can't add/remove components once
 # installed -- rolling this out on an already-installed machine requires
 # manually re-running `caelestia install` with the new component list.
 set -euo pipefail
@@ -53,7 +57,7 @@ if [ -f "$dots_state" ]; then
   echo "==> Updating caelestia dots..."
   caelestia update --aur-helper {{ .caelestia.aur_helper }} --noconfirm
 else
-  echo "==> First run: installing caelestia dots (fish/starship/pipewire/firefox disabled, uwsm/zen enabled)..."
+  echo "==> First run: installing caelestia dots (fish/starship/pipewire/firefox/foot disabled, uwsm/zen enabled)..."
   # Pre-create the backup dir so caelestia's own "already exists, overwrite?"
   # prompt (default: no, under --noconfirm) skips its internal
   # shutil.copytree ~/.config backup instead of crashing on it -- that call
@@ -65,7 +69,7 @@ else
   # `--noconfirm` is passed to the underlying pacman/paru package installs,
   # so removing it would make package installation interactive too.
   mkdir -p "$HOME/.config.bak"
-  caelestia install --aur-helper {{ .caelestia.aur_helper }} --disable-components fish,starship,pipewire,firefox --enable-components uwsm,zen --noconfirm
+  caelestia install --aur-helper {{ .caelestia.aur_helper }} --disable-components fish,starship,pipewire,firefox,foot --enable-components uwsm,zen --noconfirm
 fi
 
 {{- end }}

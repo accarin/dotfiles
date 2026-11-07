@@ -16,6 +16,11 @@ hl.config({
         kb_layout  = "at",
         kb_variant = "nodeadkeys",
     },
+    -- caelestia's misc.lua sets this false, which disables the primary
+    -- selection entirely (select -> middle-click / Shift+Insert paste).
+    misc = {
+        middle_click_paste = true,
+    },
 })
 
 -- Read by GE-Proton / proton-cachyos only; Valve's Proton ignores both.

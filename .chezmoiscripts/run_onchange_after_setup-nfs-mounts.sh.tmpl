@@ -1,0 +1,207 @@
+#!/bin/bash
+# run_onchange_after_setup-nfs-mounts.sh.tmpl
+#
+# NAS shares via NFSv4.1 as systemd .mount + .automount units in
+# /etc/systemd/system/ (configured in .chezmoidata.toml's [nfs] table).
+#
+# Why systemd units and not /etc/fstab: chezmoi owns these files outright
+# (no merging into a file shared with the hand-written local mounts, no risk
+# to the boot). systemd-fstab-generator would turn fstab lines into the very
+# same units anyway.
+#
+# Behaviour: nothing is mounted at boot. The .automount unit (enabled,
+# WantedBy=remote-fs.target) mounts the share on first access and unmounts it
+# after idle_timeout without use; a mount attempt gives up after
+# mount_timeout. Units no longer configured (or all of them, when nfs is
+# disabled) are stopped and removed -- only units carrying $MARKER are ever
+# touched.
+#
+# Unit names are systemd's escaped mountpoint path, so mountpoints are
+# /mnt/nas/<server>/<share> -> mnt-nas-<server>-<share>.{mount,automount}.
+# Names are restricted to [a-z0-9_]+ ("-" would become "\x2d").
+set -euo pipefail
+
+{{- /* --------------------------------------------------------
+     Resolve per-machine overrides (any [nfs] key except servers)
+     -------------------------------------------------------- */ -}}
+
+{{- $nfs_enabled   := .nfs.enabled }}
+{{- $options       := .nfs.options }}
+{{- $idle_timeout  := .nfs.idle_timeout }}
+{{- $mount_timeout := .nfs.mount_timeout }}
+{{- $mounts        := .nfs.mounts }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "nfs" }}
+{{-     $m := index $machine "nfs" }}
+{{-     if hasKey $m "enabled" }}{{ $nfs_enabled = index $m "enabled" }}{{ end }}
+{{-     if hasKey $m "options" }}{{ $options = index $m "options" }}{{ end }}
+{{-     if hasKey $m "idle_timeout" }}{{ $idle_timeout = index $m "idle_timeout" }}{{ end }}
+{{-     if hasKey $m "mount_timeout" }}{{ $mount_timeout = index $m "mount_timeout" }}{{ end }}
+{{-     if hasKey $m "mounts" }}{{ $mounts = index $m "mounts" }}{{ end }}
+{{-   end }}
+{{- end }}
+
+{{- /* Validate the mount list against the catalogue; fail the apply early. */ -}}
+{{- if $nfs_enabled }}
+{{-   range $mounts }}
+{{-     if not (regexMatch "^[a-z0-9_]+/[a-z0-9_]+$" .) }}
+{{-       fail (printf "nfs.mounts: %q must be \"<server>/<share>\" with names matching [a-z0-9_]+" .) }}
+{{-     end }}
+{{-     $p := splitList "/" . }}
+{{-     if not (hasKey $.nfs.servers (index $p 0)) }}
+{{-       fail (printf "nfs.mounts: %q: no server %q in [nfs.servers]" . (index $p 0)) }}
+{{-     end }}
+{{-     if not (hasKey (index $.nfs.servers (index $p 0)).shares (index $p 1)) }}
+{{-       fail (printf "nfs.mounts: %q: no share %q in [nfs.servers.%s.shares]" . (index $p 1) (index $p 0)) }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+UNIT_DIR=/etc/systemd/system
+MARKER="# Managed by chezmoi (run_onchange_after_setup-nfs-mounts.sh.tmpl) -- do not edit"
+PREFIX=mnt-nas-
+
+# Desired mounts: unit base name | NFS source | mountpoint
+DESIRED=(
+{{- if $nfs_enabled }}
+{{-   range $mounts }}
+{{-     $p := splitList "/" . }}
+{{-     $srv := index $.nfs.servers (index $p 0) }}
+{{-     $share := index $srv.shares (index $p 1) }}
+  "mnt-nas-{{ index $p 0 }}-{{ index $p 1 }}|{{ $srv.address }}:{{ $share.export }}|/mnt/nas/{{ index $p 0 }}/{{ index $p 1 }}"
+{{-   end }}
+{{- end }}
+)
+OPTIONS="vers=4.1{{ with $options }},{{ . }}{{ end }}"
+IDLE_TIMEOUT={{ $idle_timeout | quote }}
+MOUNT_TIMEOUT={{ $mount_timeout | quote }}
+
+shopt -s nullglob
+
+is_desired() {
+  local base=$1 entry
+  for entry in "${DESIRED[@]}"; do
+    [[ ${entry%%|*} == "$base" ]] && return 0
+  done
+  return 1
+}
+
+# --- Remove managed units that are no longer configured ---------------------
+# Automounts first, so the mount isn't re-triggered while being stopped.
+reload=0
+for unit_path in "$UNIT_DIR/$PREFIX"*.automount "$UNIT_DIR/$PREFIX"*.mount; do
+  grep -qxF "$MARKER" "$unit_path" || continue
+  unit=${unit_path##*/}
+  is_desired "${unit%.*}" && continue
+  echo "==> Removing $unit (no longer configured)..."
+  if [[ $unit == *.automount ]]; then
+    sudo systemctl disable --now "$unit" || echo "    WARNING: could not stop $unit" >&2
+  elif systemctl is-active -q "$unit"; then
+    sudo systemctl stop "$unit" \
+      || echo "    WARNING: $unit is busy and stays mounted until released" >&2
+  fi
+  sudo rm -f "$unit_path"
+  reload=1
+done
+
+if [[ ${#DESIRED[@]} -eq 0 ]]; then
+  [[ $reload -eq 1 ]] && sudo systemctl daemon-reload
+  echo "==> NFS mounts not enabled for {{ $hostname }}."
+  exit 0
+fi
+
+# --- NFS client --------------------------------------------------------------
+if ! command -v mount.nfs4 >/dev/null 2>&1 && [[ ! -x /usr/sbin/mount.nfs4 ]]; then
+  echo "==> Installing the NFS client..."
+  if command -v pacman >/dev/null 2>&1; then
+    sudo pacman -S --needed --noconfirm nfs-utils
+  else
+    sudo apt-get install -y nfs-common
+  fi
+fi
+
+# --- Render the units ---------------------------------------------------------
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+for entry in "${DESIRED[@]}"; do
+  IFS='|' read -r base what where <<<"$entry"
+  # Guard: the unit name must be exactly systemd's escaped mountpoint path.
+  if [[ $(systemd-escape --path "$where") != "$base" ]]; then
+    echo "ERROR: $where does not escape to $base" >&2
+    exit 1
+  fi
+  cat >"$TMP/$base.mount" <<EOF
+$MARKER
+[Unit]
+Description=NAS share $what
+After=network-online.target
+Wants=network-online.target
+
+[Mount]
+What=$what
+Where=$where
+Type=nfs4
+Options=$OPTIONS
+TimeoutSec=$MOUNT_TIMEOUT
+EOF
+  cat >"$TMP/$base.automount" <<EOF
+$MARKER
+[Unit]
+Description=Automount NAS share $what on $where
+
+[Automount]
+Where=$where
+TimeoutIdleSec=$IDLE_TIMEOUT
+
+[Install]
+WantedBy=remote-fs.target
+EOF
+done
+
+# Refuse to install anything systemd complains about. verify exits 0 on
+# "Failed to parse ..., ignoring" (e.g. a bad timeout), so any output fails.
+if ! verify_out=$(systemd-analyze verify "$TMP"/*.automount "$TMP"/*.mount 2>&1) \
+   || [[ -n $verify_out ]]; then
+  printf 'ERROR: systemd-analyze verify rejected the units:\n%s\n' "$verify_out" >&2
+  exit 1
+fi
+
+# --- Install and activate ---------------------------------------------------
+changed=()
+for unit_path in "$TMP"/*; do
+  unit=${unit_path##*/}
+  if ! cmp -s "$unit_path" "$UNIT_DIR/$unit"; then
+    echo "==> Deploying $UNIT_DIR/$unit..."
+    sudo install -m 644 -o root -g root "$unit_path" "$UNIT_DIR/$unit"
+    changed+=("$unit")
+    reload=1
+  fi
+done
+[[ $reload -eq 1 ]] && sudo systemctl daemon-reload
+
+was_changed() {
+  local u
+  for u in "${changed[@]}"; do [[ $u == "$1" ]] && return 0; done
+  return 1
+}
+
+for entry in "${DESIRED[@]}"; do
+  IFS='|' read -r base what where <<<"$entry"
+  if ! systemctl is-enabled -q "$base.automount" || ! systemctl is-active -q "$base.automount"; then
+    echo "==> Enabling $base.automount ($where)..."
+    sudo systemctl enable --now "$base.automount"
+  elif was_changed "$base.mount" || was_changed "$base.automount"; then
+    if systemctl is-active -q "$base.mount"; then
+      echo "    NOTE: $where is mounted, so the changes aren't active yet: unmount it" \
+           "(or wait for the idle unmount), then: sudo systemctl restart $base.automount"
+    else
+      sudo systemctl restart "$base.automount"
+    fi
+  fi
+done
+
+echo "==> NFS automounts ready: ${DESIRED[*]%%|*}"
