@@ -334,12 +334,15 @@ export = "/volume1/media"
 enabled = true
 mounts  = ["vie/share", "vie/backup", "vie/admin", "vie/media"]
 
-# [machines.silverhand.nfs]
-# enabled = true
+[machines.silverhand.nfs]
+enabled = true
+mounts  = ["vie/share", "vie/backup", "vie/media"]
 
 # Notebooks leave the site: maybe `options = "soft,timeo=100,retrans=3"`.
-# [machines.hitchhiker.nfs]
-# enabled = true
+[machines.hitchhiker.nfs]
+enabled = true
+options = "soft"
+mounts  = ["vie/share", "vie/backup", "vie/media"]
 
 # pc46379: only if it's on VLAN 1 -- the DSM rule denies other VLANs.
 # [machines.pc46379.nfs]
