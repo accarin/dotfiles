@@ -73,7 +73,7 @@ enabled = true
 enabled = true
 
 # =============================================================================
-# greeter (greetd + ReGreet in cage, replaces SDDM) — opt-in per machine.
+# greeter (greetd + ReGreet in a minimal Hyprland, replaces SDDM) — opt-in per machine.
 # =============================================================================
 # Why: SDDM answers every hidden PAM prompt with its single password field,
 # so with pam_u2f (pinverification=1) in system-auth the login password is
@@ -89,6 +89,15 @@ xkb_variant = "nodeadkeys"
 font        = "Rubik 12"     # caelestia's UI font (caelestia-shell dep ttf-rubik-vf)
 
 [machines.deep-thought.greeter]
+enabled = true
+
+[machines.silverhand.greeter]
+enabled = true
+
+[machines.hitchhiker.greeter]
+enabled = true
+
+[machines.pc46379.greeter]
 enabled = true
 
 # =============================================================================

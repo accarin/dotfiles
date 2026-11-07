@@ -1,8 +1,8 @@
 #!/bin/bash
 # run_onchange_after_setup-greeter.sh.tmpl
 #
-# Replaces SDDM with greetd + ReGreet (running in cage) on machines where
-# [greeter] is enabled in .chezmoidata.toml.
+# Replaces SDDM with greetd + ReGreet (running in a minimal Hyprland) on
+# machines where [greeter] is enabled in .chezmoidata.toml.
 #
 # Why: SDDM answers every hidden PAM prompt with its single password field.
 # With pam_u2f (pinverification=1) in system-auth the typed login password is
@@ -11,16 +11,27 @@
 # ("Please enter the PIN:", touch cue, "Password:"); an empty PIN falls through
 # to the password at no cost. Verified in a VM with the real key.
 #
+# Why Hyprland and not cage: cage/wlroots always scan out 8-bit. On
+# deep-thought's LG UltraWide 3840x1600@144 8-bit fits the DP link
+# uncompressed (HBR3, ~91 % load) and the panel shows white blocky flashes;
+# 10-bit (bitdepth = 10, as in the session) forces DSC at HBR2 and is clean
+# (measured via /sys/kernel/debug/dri/1/DP-1/{link_settings,dsc_clock_en}).
+# cage has no bit-depth option. Plain `Hyprland`, not start-hyprland: its
+# watchdog may restart a crashed Hyprland in safe mode with default binds
+# (a terminal) as the unauthenticated greeter user.
+#
 # Safety (machines must not get bricked):
 #   1. A named snapper snapshot of / is taken FIRST; no snapshot -> no change.
 #      Snapshots without a cleanup algorithm are never removed by snapper's
 #      timer; limine-snapper-sync lists them in the Limine boot menu.
-#   2. Only the *enabled* display manager is swapped (no --now): the running
+#   2. The greeter's Hyprland config must pass `Hyprland --verify-config`
+#      before anything is written; otherwise the script aborts.
+#   3. Only the *enabled* display manager is swapped (no --now): the running
 #      session is untouched, greetd takes over on the next boot.
-#   3. SDDM stays installed. Rollback from a TTY (cage -s allows VT switching):
+#   4. SDDM stays installed. Rollback from a TTY (Ctrl+Alt+F3):
 #        sudo systemctl disable greetd && sudo systemctl enable sddm && reboot
-#   4. Package-owned files stay untouched: chezmoi uses its own PAM service
-#      (greetd-login) and ReGreet config/CSS (regreet-chezmoi.*). Only
+#   5. Package-owned files stay untouched: chezmoi uses its own PAM service
+#      (greetd-login), Hyprland config and ReGreet config/CSS. Only
 #      /etc/greetd/config.toml (greetd's) is replaced -> .pacnew on updates.
 #
 # Disabling [greeter] later does NOT switch back automatically (see rollback).
@@ -78,10 +89,46 @@ snap="$(sudo snapper -c root create --type single --print-number \
 echo "==> greeter: snapshot #$snap created (snapper -c root list)."
 
 # --- 2. Packages (snap-pac adds its own pre/post snapshots) -----------------
-echo "==> greeter: installing greetd, ReGreet, cage, jq..."
-sudo pacman -S --needed --noconfirm greetd greetd-regreet cage jq
+echo "==> greeter: installing greetd, ReGreet, Hyprland, jq..."
+sudo pacman -S --needed --noconfirm greetd greetd-regreet hyprland jq
 
 # --- 3. System files ---------------------------------------------------------
+# Greeter compositor config: verified BEFORE anything is installed.
+HYPR_CFG="$(mktemp --suffix=.lua)"
+trap 'rm -f "$HYPR_CFG"' EXIT
+cat > "$HYPR_CFG" << 'EOF'
+-- Managed by chezmoi (run_onchange_after_setup-greeter.sh.tmpl) -- do not edit
+-- Minimal Hyprland that only runs ReGreet (greetd greeter). No binds on
+-- purpose: nothing but the login form is reachable as the greeter user.
+-- All monitors 10-bit / cm auto like the session (Hyprland falls back to
+-- 8-bit where unsupported): forces DSC on deep-thought's LG UltraWide.
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1, bitdepth = 10, cm = "auto" })
+
+hl.config({
+    input      = { kb_layout = "{{ $xkb_layout }}", kb_variant = "{{ $xkb_variant }}" },
+    misc       = {
+        disable_hyprland_logo    = true,
+        disable_splash_rendering = true,
+        force_default_wallpaper  = 0,
+        disable_watchdog_warning = true,   -- launched without start-hyprland on purpose
+    },
+    ecosystem  = { no_update_news = true, no_donation_nag = true },
+    animations = { enabled = false },
+})
+
+-- ReGreet exits after handing the login to greetd; then end this Hyprland.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("regreet --config /etc/greetd/regreet-chezmoi.toml --style /etc/greetd/regreet-chezmoi.css; hyprctl dispatch 'hl.dsp.exit()'")
+end)
+EOF
+verify_out="$(Hyprland --verify-config -c "$HYPR_CFG" 2>&1 || true)"
+if ! grep -q '^config ok' <<< "$verify_out"; then
+  echo "==> greeter: generated Hyprland greeter config fails --verify-config -- aborting." >&2
+  tail -20 <<< "$verify_out" >&2
+  exit 1
+fi
+echo "==> greeter: deploying /etc/greetd/hyprland-greeter.lua (verify-config ok)..."
+sudo install -m 644 -o root -g root "$HYPR_CFG" /etc/greetd/hyprland-greeter.lua
 echo "==> greeter: deploying /etc/greetd/config.toml..."
 sudo install -m 644 -o root -g root /dev/stdin /etc/greetd/config.toml << 'EOF'
 # Managed by chezmoi (run_onchange_after_setup-greeter.sh.tmpl) -- do not edit
@@ -93,9 +140,14 @@ vt = 1
 service = "greetd-login"
 
 [default_session]
-# cage -s: allow VT switching (Ctrl+Alt+F3 -> TTY for rollback)
-command = "env XKB_DEFAULT_LAYOUT={{ $xkb_layout }} XKB_DEFAULT_VARIANT={{ $xkb_variant }} cage -s -- regreet --config /etc/greetd/regreet-chezmoi.toml --style /etc/greetd/regreet-chezmoi.css"
+# Minimal Hyprland running ReGreet (see hyprland-greeter.lua). Hyprland
+# keeps VT switching (Ctrl+Alt+F3 -> TTY for rollback).
+command = "Hyprland -c /etc/greetd/hyprland-greeter.lua"
 user = "greeter"
+# The greeter itself uses Arch's plain greetd stack: without this, greetd
+# falls back to [general] service (greetd-login, with gnome-keyring), since
+# Arch ships no greetd-greeter PAM file.
+service = "greetd"
 EOF
 
 echo "==> greeter: deploying /etc/pam.d/greetd-login..."
