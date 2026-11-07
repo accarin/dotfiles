@@ -1,0 +1,7 @@
+# Managed by chezmoi — triggered by greeter-theme-sync.path.
+[Unit]
+Description=Sync caelestia wallpaper/scheme to the greeter
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/greeter-theme-sync

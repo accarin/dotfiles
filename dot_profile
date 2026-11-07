@@ -1,0 +1,15 @@
+# ~/.profile — Managed by chezmoi (desktops only).
+# Sourced by greetd (sh) before the Wayland session starts; it replaces what
+# SDDM got from `fish --login`. Variables live in ~/.config/session.env.
+
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+export PATH
+
+if [ -r "$HOME/.config/session.env" ]; then
+  set -a
+  . "$HOME/.config/session.env"
+  set +a
+fi

@@ -7,37 +7,15 @@
 fish_add_path ~/.local/bin
 
 # --- Environment ---
-set -gx EDITOR nvim
-set -gx VISUAL nvim
-set -gx PAGER  less
-
-# --- XDG Base Dirs ---
-set -gx XDG_CONFIG_HOME ~/.config
-set -gx XDG_DATA_HOME   ~/.local/share
-set -gx XDG_CACHE_HOME  ~/.cache
-
-# --- Wayland / Desktop (all non-server/wsl types) ---
-{{- if and (ne .machine_type "server") (ne .machine_type "wsl") }}
-set -gx XDG_CURRENT_DESKTOP niri
-set -gx XDG_SESSION_TYPE    wayland
-set -gx MOZ_ENABLE_WAYLAND  1
-set -gx QT_QPA_PLATFORM     wayland
-{{- end }}
-
-# --- Notebook: HiDPI / compact display tweaks ---
-{{- if eq .machine_type "notebook" }}
-set -gx GDK_SCALE 1
-set -gx GDK_DPI_SCALE 1.25
-set -gx QT_SCALE_FACTOR 1.25
-{{- end }}
-
-# --- Gaming PC additions ---
-{{- if eq .machine_type "gaming" }}
-# MangoHud for all Vulkan games
-set -gx MANGOHUD 1
-# GameMode
-set -gx SDL_AUDIODRIVER pipewire
-{{- end }}
+# Single source of truth: ~/.config/session.env (KEY=value), shared with
+# ~/.profile, which greetd sources for the Wayland session.
+if test -r ~/.config/session.env
+    while read -l line
+        string match -qr '^\s*(#|$)' -- $line; and continue
+        set -l kv (string split -m 1 = -- $line)
+        set -gx $kv[1] $kv[2]
+    end < ~/.config/session.env
+end
 
 # --- Aliases ---
 alias v    nvim

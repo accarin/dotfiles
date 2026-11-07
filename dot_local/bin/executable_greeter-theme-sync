@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# greeter-theme-sync — copy caelestia's current wallpaper + colour scheme to a
+# world-readable place the greeter (user "greeter", ReGreet) can read; ~ is
+# 0700. Managed by chezmoi; run by greeter-theme-sync.path (user unit) whenever
+# caelestia changes its wallpaper or scheme, and once by
+# run_onchange_after_setup-greeter.sh.tmpl.
+#   wallpaper: $XDG_STATE_HOME/caelestia/wallpaper/current (symlink) -> $DEST/wallpaper
+#   scheme:    $XDG_STATE_HOME/caelestia/scheme.json -> $DEST/colours.css (@define-color)
+set -euo pipefail
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia"
+DEST="${GREETER_THEME_DIR:-/var/lib/greeter-theme}"
+
+[ -d "$DEST" ] && [ -w "$DEST" ] || { echo "greeter-theme-sync: $DEST missing or not writable" >&2; exit 1; }
+
+wp="$(readlink -f "$STATE/wallpaper/current" 2>/dev/null || true)"
+if [ -n "$wp" ] && [ -r "$wp" ]; then
+  install -m 644 "$wp" "$DEST/wallpaper.tmp" && mv -f "$DEST/wallpaper.tmp" "$DEST/wallpaper"
+fi
+
+if [ -r "$STATE/scheme.json" ]; then
+  jq -r '.colours | to_entries[]
+         | select(.key | test("^(primary|onPrimary|surface|surfaceContainer|onSurface|onSurfaceVariant|outline|error)$"))
+         | "@define-color \(.key) #\(.value);"' "$STATE/scheme.json" > "$DEST/colours.css.tmp"
+  chmod 644 "$DEST/colours.css.tmp" && mv -f "$DEST/colours.css.tmp" "$DEST/colours.css"
+fi

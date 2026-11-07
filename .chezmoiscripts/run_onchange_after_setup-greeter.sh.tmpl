@@ -1,0 +1,195 @@
+#!/bin/bash
+# run_onchange_after_setup-greeter.sh.tmpl
+#
+# Replaces SDDM with greetd + ReGreet (running in cage) on machines where
+# [greeter] is enabled in .chezmoidata.toml.
+#
+# Why: SDDM answers every hidden PAM prompt with its single password field.
+# With pam_u2f (pinverification=1) in system-auth the typed login password is
+# sent to the FIDO key as its PIN: -1 PIN attempt per login, unnoticed, until
+# the key locks. greetd hands every PAM prompt to ReGreet separately
+# ("Please enter the PIN:", touch cue, "Password:"); an empty PIN falls through
+# to the password at no cost. Verified in a VM with the real key.
+#
+# Safety (machines must not get bricked):
+#   1. A named snapper snapshot of / is taken FIRST; no snapshot -> no change.
+#      Snapshots without a cleanup algorithm are never removed by snapper's
+#      timer; limine-snapper-sync lists them in the Limine boot menu.
+#   2. Only the *enabled* display manager is swapped (no --now): the running
+#      session is untouched, greetd takes over on the next boot.
+#   3. SDDM stays installed. Rollback from a TTY (cage -s allows VT switching):
+#        sudo systemctl disable greetd && sudo systemctl enable sddm && reboot
+#   4. Package-owned files stay untouched: chezmoi uses its own PAM service
+#      (greetd-login) and ReGreet config/CSS (regreet-chezmoi.*). Only
+#      /etc/greetd/config.toml (greetd's) is replaced -> .pacnew on updates.
+#
+# Disabling [greeter] later does NOT switch back automatically (see rollback).
+set -euo pipefail
+
+{{- /* --------------------------------------------------------
+     Resolve per-machine overrides (any [greeter] key)
+     -------------------------------------------------------- */ -}}
+
+{{- $enabled     := .greeter.enabled }}
+{{- $xkb_layout  := .greeter.xkb_layout }}
+{{- $xkb_variant := .greeter.xkb_variant }}
+{{- $font        := .greeter.font }}
+
+{{- $hostname := .chezmoi.hostname }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "greeter" }}
+{{-     $m := index $machine "greeter" }}
+{{-     if hasKey $m "enabled" }}{{ $enabled = index $m "enabled" }}{{ end }}
+{{-     if hasKey $m "xkb_layout" }}{{ $xkb_layout = index $m "xkb_layout" }}{{ end }}
+{{-     if hasKey $m "xkb_variant" }}{{ $xkb_variant = index $m "xkb_variant" }}{{ end }}
+{{-     if hasKey $m "font" }}{{ $font = index $m "font" }}{{ end }}
+{{-   end }}
+{{- end }}
+
+{{- if and (ne .machine_type "server") (ne .machine_type "wsl") $enabled }}
+
+THEME_DIR=/var/lib/greeter-theme
+SYNC="{{ .chezmoi.homeDir }}/.local/bin/greeter-theme-sync"
+DM_LINK=/etc/systemd/system/display-manager.service
+
+# --- 0. Preconditions: refuse to touch an unknown display-manager setup -----
+current_dm=""
+if [ -L "$DM_LINK" ]; then
+  current_dm="$(basename "$(readlink -f "$DM_LINK")")"
+fi
+case "$current_dm" in
+  ""|sddm.service|greetd.service) ;;
+  *) echo "==> greeter: display manager is '$current_dm' (expected sddm or greetd) -- aborting, nothing changed." >&2
+     exit 1 ;;
+esac
+
+if ! sudo snapper -c root get-config >/dev/null 2>&1; then
+  echo "==> greeter: no snapper config 'root' -- refusing to change the display manager without a snapshot." >&2
+  exit 1
+fi
+
+# --- 1. Named snapshot BEFORE any change ------------------------------------
+echo "==> greeter: creating snapper snapshot of / ..."
+snap="$(sudo snapper -c root create --type single --print-number \
+          --description "pre-greetd: before SDDM -> greetd/ReGreet (chezmoi)" \
+          --userdata important=yes)"
+[ -n "$snap" ] || { echo "==> greeter: snapshot failed -- aborting." >&2; exit 1; }
+echo "==> greeter: snapshot #$snap created (snapper -c root list)."
+
+# --- 2. Packages (snap-pac adds its own pre/post snapshots) -----------------
+echo "==> greeter: installing greetd, ReGreet, cage, jq..."
+sudo pacman -S --needed --noconfirm greetd greetd-regreet cage jq
+
+# --- 3. System files ---------------------------------------------------------
+echo "==> greeter: deploying /etc/greetd/config.toml..."
+sudo install -m 644 -o root -g root /dev/stdin /etc/greetd/config.toml << 'EOF'
+# Managed by chezmoi (run_onchange_after_setup-greeter.sh.tmpl) -- do not edit
+[terminal]
+vt = 1
+
+[general]
+# chezmoi-owned PAM service (= Arch's greetd + gnome-keyring, like SDDM had)
+service = "greetd-login"
+
+[default_session]
+# cage -s: allow VT switching (Ctrl+Alt+F3 -> TTY for rollback)
+command = "env XKB_DEFAULT_LAYOUT={{ $xkb_layout }} XKB_DEFAULT_VARIANT={{ $xkb_variant }} cage -s -- regreet --config /etc/greetd/regreet-chezmoi.toml --style /etc/greetd/regreet-chezmoi.css"
+user = "greeter"
+EOF
+
+echo "==> greeter: deploying /etc/pam.d/greetd-login..."
+sudo install -m 644 -o root -g root /dev/stdin /etc/pam.d/greetd-login << 'EOF'
+#%PAM-1.0
+# Managed by chezmoi (run_onchange_after_setup-greeter.sh.tmpl) -- do not edit
+# Arch's /etc/pam.d/greetd plus the gnome-keyring lines from /etc/pam.d/sddm.
+auth       required     pam_securetty.so
+auth       requisite    pam_nologin.so
+auth       include      system-local-login
+-auth      optional     pam_gnome_keyring.so
+account    include      system-local-login
+password   include      system-local-login
+-password  optional     pam_gnome_keyring.so use_authtok
+session    include      system-local-login
+-session   optional     pam_gnome_keyring.so auto_start
+EOF
+
+echo "==> greeter: deploying ReGreet config + style..."
+sudo install -m 644 -o root -g root /dev/stdin /etc/greetd/regreet-chezmoi.toml << 'EOF'
+# Managed by chezmoi (run_onchange_after_setup-greeter.sh.tmpl) -- do not edit
+[background]
+# copied from caelestia by ~/.local/bin/greeter-theme-sync (~ is 0700)
+path = "/var/lib/greeter-theme/wallpaper"
+fit = "Cover"
+
+[GTK]
+application_prefer_dark_theme = true
+font_name = "{{ $font }}"
+
+[widget.clock]
+format = "%a %d. %b  %H:%M"
+EOF
+
+sudo install -m 644 -o root -g root /dev/stdin /etc/greetd/regreet-chezmoi.css << 'EOF'
+/* Managed by chezmoi (run_onchange_after_setup-greeter.sh.tmpl) -- do not edit */
+/* colours follow caelestia: generated by greeter-theme-sync */
+@import url("file:///var/lib/greeter-theme/colours.css");
+
+window, .background { color: @onSurface; }
+frame, box.view, .card { background-color: alpha(@surface, 0.85); border-radius: 16px; }
+entry { background-color: @surfaceContainer; color: @onSurface; }
+button.suggested-action { background: @primary; color: @onPrimary; }
+label.error, .error { color: @error; }
+
+/* Reboot / Power Off: quiet outline buttons, red only on hover */
+button.destructive-action {
+  background: transparent;
+  color: alpha(@onSurface, 0.55);
+  border: 1px solid alpha(@outline, 0.5);
+  box-shadow: none;
+}
+button.destructive-action:hover { color: @error; border-color: @error; background: alpha(@error, 0.08); }
+
+/* User / Session dropdowns + their popups in scheme colours */
+button.combo, dropdown > button { background: @surfaceContainer; color: @onSurface; border: 1px solid alpha(@outline, 0.5); box-shadow: none; }
+popover > contents, popover > arrow { background-color: @surfaceContainer; color: @onSurface; }
+EOF
+
+# --- 4. Theme dir (written by the user's sync unit, read by "greeter") -------
+sudo install -d -m 755 -o "$(id -un)" -g "$(id -gn)" "$THEME_DIR"
+if [ ! -e "$THEME_DIR/colours.css" ]; then
+  # Fallback (tokyonight) until the first sync, so @primary etc. always exist.
+  install -m 644 /dev/stdin "$THEME_DIR/colours.css" << 'EOF'
+@define-color surface #24283B;
+@define-color surfaceContainer #2A2F41;
+@define-color onSurface #C0CAF5;
+@define-color onSurfaceVariant #A9B1D6;
+@define-color outline #565F89;
+@define-color primary #7AA2F7;
+@define-color onPrimary #1A1B26;
+@define-color error #F7768E;
+EOF
+fi
+if [ -x "$SYNC" ]; then
+  "$SYNC" || echo "==> greeter: WARNING: initial greeter-theme-sync failed (greeter uses fallback colours)." >&2
+fi
+systemctl --user daemon-reload
+systemctl --user enable --now greeter-theme-sync.path
+
+# --- 5. Swap the enabled display manager (effective next boot) --------------
+if [ "$current_dm" = "sddm.service" ]; then
+  echo "==> greeter: disabling SDDM (stays installed as fallback)..."
+  sudo systemctl disable sddm.service
+fi
+sudo systemctl enable greetd.service
+
+echo "==> greeter: done. greetd takes over on the NEXT BOOT; the running session is untouched."
+echo "    Snapshot before this change: #$snap ('pre-greetd', snapper -c root list)."
+echo "    Rollback from a TTY: sudo systemctl disable greetd && sudo systemctl enable sddm && reboot"
+echo "    Worst case: boot snapshot #$snap from the Limine menu (Snapshots), then limine-snapper-restore."
+
+{{- else }}
+
+echo "==> greeter setup skipped (not enabled for {{ $hostname }})."
+
+{{- end }}

@@ -1,0 +1,11 @@
+# Managed by chezmoi — re-sync the greeter theme when caelestia changes
+# wallpaper or scheme (see ~/.local/bin/greeter-theme-sync).
+[Unit]
+Description=Sync caelestia wallpaper/scheme to the greeter
+
+[Path]
+PathChanged=%h/.local/state/caelestia/wallpaper/path.txt
+PathChanged=%h/.local/state/caelestia/scheme.json
+
+[Install]
+WantedBy=default.target

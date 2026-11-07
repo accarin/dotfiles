@@ -46,7 +46,7 @@ keys = [
     # T2 Mini U1 Work
     "DzT+bHhlz8zwwNmHgqKrzjrgPFTcMVFUUoKFiLuQI1xgCK/A/I09TV1D5RtOEtSoFA7DnnYGxfJbPNjl1CA3KM/CYnmkXDTLvHXbt+UdZxAXrKk3eGuYvXzn4ZqQKuEQ,kMjyQDDrL94Bk9AOee40eKoPQlgcb9Hu7wih2pkvUlOKnofjXkYpnLv54SNjyuaejRLBx5n2IRs9vKkoYVi+Cw==,es256,+presence+pin",
     # T2 Mini U2 KVM
-    "7vOYq+d1DKmNV7p6G4lOzduITTfI99YZs8Y1jlPPb0ED0LXF8qaADXU6lmq0zBj11BMEWTT4iN0UtT3RrI+mR+oYgD7QzNn/AhVMYYWpGPEoBOYmhahtxrTsSKOMt099,PEWE2lr5rKRa80PLLjSF57c228gQSjNtkAK2aHbH9EEMfCzU51sapWGByMti3wgUbW+ToGUIQx4pJMlfh5w2dA==,es256,+presence+pin",
+    "zAGRlviL1lbj8e4kZYXS/0rVMfVQqFfx9JS2fSp1Auj0c1tfPgTIOpaOt1KGCd0ZJg+2SMluASPT+UDnyAkuik00eHco+b81tHIFwvdlfrfa1V+ygWC+7ES1Fkae0qJG,CFzfOYfHLeUyHks1zc8W9nCjUoVI/5MLO0qvz5RG6xBZgox4MvSiacdp8pCv2MkVwMfCLkKU69J59m7kldW+Pw==,es256,+presence+pin",
     # T2 Mini C1 HH
     "CNWA2pmOMzCMhS0TkJmtUAg5e06k4di7Dc38OV2rWGj3QTYrP24+F2wGBsmaweyOwA5SyjjB2FOTdLw9JV8IhTMsyZzjq5uKX+/8TNtN6jn4VG7pveInFh4F6g4MJSOQ,zgYbtEFORf6ttKf1c5SQW/w9xWOU6jllrjsLfEs3RWhQvrFNaq2oZNDWEX4DfeyJm1AtKNIiPg6tCpPkKj4KDQ==,es256,+presence+pin",
     # Legacy Mobile
@@ -70,6 +70,25 @@ enabled = true
 enabled = true
 
 [machines.pc46379.u2f]
+enabled = true
+
+# =============================================================================
+# greeter (greetd + ReGreet in cage, replaces SDDM) — opt-in per machine.
+# =============================================================================
+# Why: SDDM answers every hidden PAM prompt with its single password field,
+# so with pam_u2f (pinverification=1) in system-auth the login password is
+# sent to the FIDO key as its PIN (-1 PIN attempt per login, unnoticed).
+# greetd/ReGreet shows each PAM prompt separately (PIN, touch, password).
+# run_onchange_after_setup-greeter.sh.tmpl takes a named snapper snapshot
+# first, keeps SDDM installed as a fallback and only swaps the enabled
+# display manager (effective on the next boot). Arch desktops only.
+[greeter]
+enabled     = false
+xkb_layout  = "at"
+xkb_variant = "nodeadkeys"
+font        = "Rubik 12"     # caelestia's UI font (caelestia-shell dep ttf-rubik-vf)
+
+[machines.deep-thought.greeter]
 enabled = true
 
 # =============================================================================
