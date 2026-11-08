@@ -101,3 +101,17 @@ dot_bashrc
 .config/Code/User/settings.json
 {{- end }}
 
+# --- jellyfin-mpv-shim — only where [jellyfin_mpv_shim] is enabled ---
+{{- $shimEnabled := .jellyfin_mpv_shim.enabled }}
+{{- if hasKey .machines $hostname }}
+{{-   $machine := index .machines $hostname }}
+{{-   if hasKey $machine "jellyfin_mpv_shim" }}
+{{-     $machineShim := index $machine "jellyfin_mpv_shim" }}
+{{-     if hasKey $machineShim "enabled" }}
+{{-       $shimEnabled = index $machineShim "enabled" }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- if or (eq .machine_type "server") (eq .machine_type "wsl") (not $shimEnabled) }}
+.config/jellyfin-mpv-shim
+{{- end }}

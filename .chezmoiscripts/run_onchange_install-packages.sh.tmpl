@@ -137,6 +137,26 @@ AUR_PKGS+=(
 )
 {{-   end }}
 
+{{-   $shim_enabled := .jellyfin_mpv_shim.enabled }}
+{{-   if hasKey .machines $hostname }}
+{{-     $machine := index .machines $hostname }}
+{{-     if hasKey $machine "jellyfin_mpv_shim" }}
+{{-       $machineShim := index $machine "jellyfin_mpv_shim" }}
+{{-       if hasKey $machineShim "enabled" }}
+{{-         $shim_enabled = index $machineShim "enabled" }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{-   if $shim_enabled }}
+PACMAN_PKGS+=(
+    # Jellyfin client/cast target; mpv keeps its own window, so HDR works
+    # (config: ~/.config/jellyfin-mpv-shim/mpv.conf)
+    jellyfin-mpv-shim
+    # Tray icon + close-to-tray, so it stays a cast target
+    python-pystray
+)
+{{-   end }}
+
 {{-   if eq .machine_type "gaming" }}
 PACMAN_PKGS+=(
     steam

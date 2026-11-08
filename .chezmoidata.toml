@@ -234,6 +234,12 @@ user          = "admin"
 identity_file = "~/.key/ssh.med-1.nxs.internal.key"
 port          = 62022
 
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "arr-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.arr-1.nxs.internal.key"
+port          = 62022
+
 [machines.hitchhiker.ssh_agent]
 enabled = true
 
@@ -310,6 +316,21 @@ dns_fallback_2    = "dns.quad9.net"
 
 # [machines.pc46379.dot]
 # enabled   = true
+
+
+# =============================================================================
+# jellyfin-mpv-shim (Jellyfin client + cast target, mpv in its own window so
+# HDR passthrough works) — opt-in per machine.
+# =============================================================================
+# Installs jellyfin-mpv-shim + python-pystray (tray / close-to-tray) and
+# deploys ~/.config/jellyfin-mpv-shim/mpv.conf. conf.json is NOT managed: the
+# shim rewrites it itself (login, remembered choices) -- set "Go fullscreen
+# when playback starts" in the shim's Settings → Window.
+[jellyfin_mpv_shim]
+enabled = false
+
+[machines.deep-thought.jellyfin_mpv_shim]
+enabled = true
 
 
 # =============================================================================
