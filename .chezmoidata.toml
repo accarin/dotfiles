@@ -170,15 +170,15 @@ identity_file = "~/.key/ssh.github.key"
 [machines.deep-thought.ssh_agent]
 enabled = true
 
-[[machines.deep-thought.ssh_hosts.accarin.entries]]
-host          = "git.maenle.net"
-user          = "git"
-identity_file = "~/.key/ssh.git.maenle.net.u2f-kvm.key"
+# [[machines.deep-thought.ssh_hosts.accarin.entries]]
+# host          = "git.maenle.net"
+# user          = "git"
+# identity_file = "~/.key/ssh.git.maenle.net.key"
 
-[[machines.deep-thought.ssh_hosts.accarin.entries]]
-host          = "oebb.ghe.com"
-user          = "git"
-identity_file = "~/.key/ssh.oebb.ghe.com.u2f-kvm.key"
+# [[machines.deep-thought.ssh_hosts.accarin.entries]]
+# host          = "oebb.ghe.com"
+# user          = "git"
+# identity_file = "~/.key/ssh.oebb.ghe.com.u2f-kvm.key"
 
 [[machines.deep-thought.ssh_hosts.accarin.entries]]
 host          = "nxs-1.nxs.internal"
@@ -222,6 +222,17 @@ user          = "admin"
 identity_file = "~/.key/ssh.dns-1.nxs.internal.key"
 port          = 62022
 
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "prx-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.prx-1.nxs.internal.key"
+port          = 62022
+
+[[machines.deep-thought.ssh_hosts.accarin.entries]]
+host          = "med-1.nxs.internal"
+user          = "admin"
+identity_file = "~/.key/ssh.med-1.nxs.internal.key"
+port          = 62022
 
 [machines.hitchhiker.ssh_agent]
 enabled = true
