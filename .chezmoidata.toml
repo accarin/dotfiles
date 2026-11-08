@@ -344,7 +344,7 @@ mounts        = ["vie/share", "vie/backup"]
 address = "192.168.1.30"   # Synology in Vienna, static
 
 [nfs.servers.vie.shares.share]
-export = "/volume2/share"
+export = "/volume1/share"
 
 [nfs.servers.vie.shares.backup]
 export = "/volume1/backup"
