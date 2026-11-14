@@ -30,11 +30,19 @@
   gracefully first, same as Hyprland's own stock config. All of that lives in
   ~/.local/bin/wm-logout (shared with the shell `logout` alias); absolute path
   so it works regardless of the compositor's PATH.
+
+  bar.workspaces.shown (default 5): show 10 so the bar matches the Super+1..0
+  workspace keybinds in caelestia's hypr/hyprland/keybinds.lua.
 */ -}}
 {
   "appearance": {
     "transparency": {
       "enabled": true
+    }
+  },
+  "bar": {
+    "workspaces": {
+      "shown": 10
     }
   },
   "session": {
